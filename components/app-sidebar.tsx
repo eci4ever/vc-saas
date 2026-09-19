@@ -20,7 +20,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
-import { LayoutDashboardIcon } from "lucide-react"
+import { LayoutDashboardIcon, SettingsIcon } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
@@ -63,6 +63,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 >
                   <LayoutDashboardIcon />
                   <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Settings"
+                  isActive={pathname.startsWith("/dashboard/settings")}
+                  render={<Link href="/dashboard/settings" />}
+                >
+                  <SettingsIcon />
+                  <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

@@ -1,6 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { AppSidebar } from "@/components/app-sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 
 export default async function DashboardLayout({
@@ -14,5 +19,10 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
-  return <>{children}</>;
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>{children}</SidebarInset>
+    </SidebarProvider>
+  );
 }

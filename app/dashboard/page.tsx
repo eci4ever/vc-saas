@@ -1,6 +1,5 @@
 import { headers } from "next/headers"
 
-import { AppSidebar } from "@/components/app-sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Breadcrumb,
@@ -18,11 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { auth } from "@/lib/auth"
 
 type MemberRow = {
@@ -118,10 +113,8 @@ export default async function Page() {
   ]
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator
@@ -233,9 +226,8 @@ export default async function Page() {
                 )}
               </CardContent>
             </Card>
-          </div>
         </div>
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </>
   )
 }

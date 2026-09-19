@@ -20,10 +20,13 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
-import { LayoutDashboardIcon, SettingsIcon } from "lucide-react"
+import { LayoutDashboardIcon, SettingsIcon, ShieldIcon } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { data: session } = authClient.useSession()
+  const isAdmin =
+    (session?.user as { role?: string } | undefined)?.role === "admin"
   const { data: organizations } = authClient.useListOrganizations()
   const { data: activeOrganization } = authClient.useActiveOrganization()
 
@@ -75,6 +78,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <span>Settings</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {isAdmin ? (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Admin"
+                    isActive={pathname.startsWith("/dashboard/admin")}
+                    render={<Link href="/dashboard/admin/users" />}
+                  >
+                    <ShieldIcon />
+                    <span>Admin</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

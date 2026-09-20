@@ -18,6 +18,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { getRecentAdminActivity, requireAdmin } from "@/lib/admin";
 
 import { UserRowActions } from "./user-row-actions";
 
@@ -38,6 +39,8 @@ export default async function AdminUsersPage({
   const { q } = await searchParams;
   const query = q?.trim() ? q.trim() : undefined;
 
+  const adminUser = await requireAdmin();
+
   const result = await auth.api.listUsers({
     headers: await headers(),
     query: {
@@ -48,6 +51,7 @@ export default async function AdminUsersPage({
   });
 
   const users = (result?.users ?? []) as AdminUser[];
+  const activity = await getRecentAdminActivity(20);
 
   return (
     <>
@@ -123,9 +127,58 @@ export default async function AdminUsersPage({
                     </div>
                     <UserRowActions
                       userId={user.id}
+                      userName={user.name}
+                      userEmail={user.email}
                       role={user.role ?? "user"}
                       banned={!!user.banned}
+                      isSelf={user.id === adminUser.id}
                     />
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent admin activity</CardTitle>
+              <CardDescription>
+                Latest 20 admin actions across the platform.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {activity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No admin actions recorded yet.
+                </p>
+              ) : (
+                activity.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-medium">{entry.actorEmail}</span>
+                      <span className="text-muted-foreground">
+                        {entry.action === "ban" && "banned"}
+                        {entry.action === "unban" && "unbanned"}
+                        {entry.action === "set-role" &&
+                          `changed role${
+                            entry.oldRole || entry.newRole
+                              ? ` (${entry.oldRole ?? "?"} → ${entry.newRole ?? "?"})`
+                              : ""
+                          }`}
+                      </span>
+                      <span className="font-medium">{entry.targetEmail}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      <span>
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </span>
+                      {entry.reason ? (
+                        <span>Reason: {entry.reason}</span>
+                      ) : null}
+                    </div>
                   </div>
                 ))
               )}

@@ -20,7 +20,18 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
-import { LayoutDashboardIcon, SettingsIcon, ShieldIcon } from "lucide-react"
+import {
+  Building2Icon,
+  CreditCardIcon,
+  FolderKanbanIcon,
+  KeyRoundIcon,
+  LayoutDashboardIcon,
+  PackageIcon,
+  RepeatIcon,
+  ScrollTextIcon,
+  SettingsIcon,
+  ShieldIcon,
+} from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
@@ -44,6 +55,74 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     await authClient.organization.setActive({ organizationId: id })
   }
 
+  const workspaceItems = [
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: LayoutDashboardIcon,
+      isActive: pathname === "/dashboard",
+    },
+    {
+      title: "Projects",
+      href: "/dashboard/projects",
+      icon: FolderKanbanIcon,
+      isActive: pathname.startsWith("/dashboard/projects"),
+    },
+    {
+      title: "Billing",
+      href: "/dashboard/billing",
+      icon: CreditCardIcon,
+      isActive: pathname.startsWith("/dashboard/billing"),
+    },
+    {
+      title: "API Keys",
+      href: "/dashboard/api-keys",
+      icon: KeyRoundIcon,
+      isActive: pathname.startsWith("/dashboard/api-keys"),
+    },
+    {
+      title: "Settings",
+      href: "/dashboard/settings",
+      icon: SettingsIcon,
+      isActive: pathname.startsWith("/dashboard/settings"),
+    },
+  ]
+
+  const adminItems = [
+    {
+      title: "Users",
+      href: "/dashboard/admin/users",
+      icon: ShieldIcon,
+      isActive:
+        pathname === "/dashboard/admin/users" ||
+        pathname === "/dashboard/admin",
+    },
+    {
+      title: "Organizations",
+      href: "/dashboard/admin/organizations",
+      icon: Building2Icon,
+      isActive: pathname.startsWith("/dashboard/admin/organizations"),
+    },
+    {
+      title: "Plans",
+      href: "/dashboard/admin/plans",
+      icon: PackageIcon,
+      isActive: pathname.startsWith("/dashboard/admin/plans"),
+    },
+    {
+      title: "Subscriptions",
+      href: "/dashboard/admin/subscriptions",
+      icon: RepeatIcon,
+      isActive: pathname.startsWith("/dashboard/admin/subscriptions"),
+    },
+    {
+      title: "Audit Log",
+      href: "/dashboard/admin/audit-log",
+      icon: ScrollTextIcon,
+      isActive: pathname.startsWith("/dashboard/admin/audit-log"),
+    },
+  ]
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -55,44 +134,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Dashboard"
-                  isActive={pathname === "/dashboard"}
-                  render={<Link href="/dashboard" />}
-                >
-                  <LayoutDashboardIcon />
-                  <span>Dashboard</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Settings"
-                  isActive={pathname.startsWith("/dashboard/settings")}
-                  render={<Link href="/dashboard/settings" />}
-                >
-                  <SettingsIcon />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {isAdmin ? (
-                <SidebarMenuItem>
+              {workspaceItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
-                    tooltip="Admin"
-                    isActive={pathname.startsWith("/dashboard/admin")}
-                    render={<Link href="/dashboard/admin/users" />}
+                    tooltip={item.title}
+                    isActive={item.isActive}
+                    render={<Link href={item.href} />}
                   >
-                    <ShieldIcon />
-                    <span>Admin</span>
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ) : null}
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {isAdmin ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={item.isActive}
+                      render={<Link href={item.href} />}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

@@ -115,6 +115,15 @@ export default async function AdminUsersPage({
                     <div className="grid flex-1 leading-tight">
                       <span className="truncate font-medium">
                         {user.name}
+                        <span
+                          className={
+                            user.role === "admin"
+                              ? "ml-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-400"
+                              : "ml-2 rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-400"
+                          }
+                        >
+                          {user.role ?? "user"}
+                        </span>
                         {user.banned ? (
                           <span className="ml-2 rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
                             banned
@@ -122,7 +131,7 @@ export default async function AdminUsersPage({
                         ) : null}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
-                        {user.email} · {user.role ?? "user"}
+                        {user.email}
                       </span>
                     </div>
                     <UserRowActions

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
 
+import { StatusIndicators, type Status } from "@/components/status-indicators";
+
 import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
 
-async function getDbStatus(): Promise<{ online: boolean; latencyMs: number }> {
+async function getDbStatus(): Promise<Status> {
   const start = Date.now();
   try {
     await db.execute(sql`select 1`);
@@ -46,27 +48,9 @@ export default async function Home() {
 
       <main className="flex flex-1 items-center justify-center">
         <section className="mx-auto w-full max-w-6xl px-6 py-20 text-center sm:py-28">
-          <p
-            className={`mx-auto mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${
-              dbStatus.online
-                ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                : "border-red-500/30 text-red-700 dark:text-red-400"
-            }`}
-          >
-            <span className="relative flex size-2">
-              <span
-                className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${
-                  dbStatus.online ? "bg-emerald-500" : "bg-red-500"
-                }`}
-              />
-              <span
-                className={`relative inline-flex size-2 rounded-full ${
-                  dbStatus.online ? "bg-emerald-500" : "bg-red-500"
-                }`}
-              />
-            </span>
-            {dbStatus.online ? `DB connected · ${dbStatus.latencyMs}ms` : "DB offline"}
-          </p>
+          <div className="mb-6 flex justify-center">
+            <StatusIndicators initialDb={dbStatus} />
+          </div>
           <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight sm:text-6xl">
             Ship your SaaS faster with a simple starter
           </h1>

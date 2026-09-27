@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { sql } from "drizzle-orm";
+import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { StatusIndicators, type Status } from "@/components/status-indicators";
+import { Button } from "@/components/ui/button";
 
 import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
+
+const STACK = ["Next.js", "React", "better-auth", "Drizzle", "Neon"];
 
 async function getDbStatus(): Promise<Status> {
   const start = Date.now();
@@ -20,57 +25,77 @@ async function getDbStatus(): Promise<Status> {
 export default async function Home() {
   const dbStatus = await getDbStatus();
   return (
-    <div className="flex min-h-screen flex-col bg-white font-sans text-zinc-950 antialiased dark:bg-black dark:text-zinc-50">
-      <header className="border-b border-zinc-200/70 dark:border-white/10">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 text-sm text-white dark:bg-white dark:text-black">
-              V
-            </span>
-            Acme SaaS
+    <div className="relative isolate flex min-h-svh flex-col overflow-hidden bg-background font-sans text-foreground">
+      {/* Ambient gradient wash across the top of the page. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-20 h-[560px] bg-gradient-to-b from-foreground/[0.05] to-transparent dark:from-foreground/[0.08]" />
+      {/* Blurred orbs that give the wash its falloff. */}
+      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
+        <div className="absolute left-1/2 top-[-240px] size-[720px] -translate-x-1/2 rounded-full bg-foreground/10 blur-[140px] dark:bg-foreground/15" />
+        <div className="absolute left-[16%] top-[-160px] size-[420px] rounded-full bg-foreground/[0.07] blur-[120px] dark:bg-foreground/[0.09]" />
+        <div className="absolute right-[14%] top-[-120px] size-[380px] rounded-full bg-foreground/[0.05] blur-[120px] dark:bg-foreground/[0.07]" />
+      </div>
+      {/* Grid that fades out toward the bottom. */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(to_right,color-mix(in_oklab,var(--border)_85%,transparent)_1px,transparent_1px),linear-gradient(to_bottom,color-mix(in_oklab,var(--border)_85%,transparent)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,black,transparent)]" />
+
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
+        <BrandMark />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/login"
+            className="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:block"
+          >
+            Sign in
           </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="hidden text-sm font-medium text-zinc-600 hover:text-zinc-950 sm:block dark:text-zinc-400 dark:hover:text-white"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-            >
-              Get started
-            </Link>
-          </div>
+          <Button
+            render={<Link href="/signup" />}
+            nativeButton={false}
+            className="h-9 rounded-full px-4"
+          >
+            Get started
+          </Button>
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center">
-        <section className="mx-auto w-full max-w-6xl px-6 py-20 text-center sm:py-28">
-          <div className="mb-6 flex justify-center">
-            <StatusIndicators initialDb={dbStatus} />
-          </div>
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight sm:text-6xl">
-            Ship your SaaS faster with a simple starter
+      <main className="flex flex-1 items-center justify-center px-6 pb-16">
+        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 text-center">
+          <span className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground duration-700">
+            <SparklesIcon className="size-3.5" />
+            Built with Next.js, better-auth &amp; Drizzle
+          </span>
+
+          <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both max-w-3xl font-heading text-4xl font-semibold tracking-tighter text-balance delay-100 duration-700 sm:text-6xl">
+            <span className="bg-gradient-to-b from-foreground via-foreground to-foreground/40 bg-clip-text text-transparent">
+              Ship your SaaS faster with a simple starter
+            </span>
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Auth, billing, dashboard, and deploys — wired up with Next.js and
+
+          <p className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both max-w-xl text-lg leading-8 text-balance text-muted-foreground delay-200 duration-700">
+            Auth, billing, teams, and dashboard — wired up with Next.js and
             Tailwind. Clone it, brand it, charge for it.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/signup"
-              className="flex h-12 w-full items-center justify-center rounded-full bg-zinc-950 px-6 text-base font-medium text-white transition-colors hover:bg-zinc-800 sm:w-auto dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+
+          <div className="flex w-full animate-in fade-in slide-in-from-bottom-2 items-center justify-center gap-3 fill-mode-both delay-300 duration-700 sm:w-auto">
+            <Button
+              render={<Link href="/signup" />}
+              nativeButton={false}
+              className="h-12 w-full rounded-full px-6 text-base sm:w-auto"
             >
               Start building free
-            </Link>
-            <Link
-              href="/login"
-              className="flex h-12 w-full items-center justify-center rounded-full border border-zinc-200 px-6 text-base font-medium transition-colors hover:bg-zinc-100 sm:w-auto dark:border-white/15 dark:hover:bg-white/10"
+              <ArrowRightIcon data-icon="inline-end" />
+            </Button>
+            <Button
+              variant="outline"
+              render={<Link href="/login" />}
+              nativeButton={false}
+              className="h-12 w-full rounded-full px-6 text-base sm:w-auto"
             >
               View demo
-            </Link>
+            </Button>
+          </div>
+
+          <div className="flex animate-in fade-in flex-col items-center gap-3 fill-mode-both delay-[450ms] duration-700">
+            <StatusIndicators initialDb={dbStatus} />
+            <p className="text-xs text-muted-foreground">{STACK.join(" · ")}</p>
           </div>
         </section>
       </main>

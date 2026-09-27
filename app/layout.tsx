@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BRAND_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Acme SaaS — Simple SaaS Starter",
-  description: "Auth, billing, and dashboard starter built with Next.js.",
+  title: `${BRAND_NAME} — Ship your SaaS faster`,
+  description: "Auth, teams, billing, and dashboard starter built with Next.js.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

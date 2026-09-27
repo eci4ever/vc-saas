@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
@@ -35,12 +36,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col bg-white font-sans text-zinc-950 antialiased dark:bg-black dark:text-zinc-50">
       <header className="border-b border-zinc-200/70 dark:border-white/10">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 text-sm text-white dark:bg-white dark:text-black">
-              V
-            </span>
-            Acme SaaS
-          </Link>
+          <BrandMark />
         </div>
       </header>
 

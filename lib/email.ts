@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 
-const brand = process.env.EMAIL_BRAND_NAME ?? "Acme SaaS";
+import { BRAND_NAME } from "@/lib/brand";
+
+const brand = process.env.EMAIL_BRAND_NAME ?? BRAND_NAME;
 
 function getResend() {
   const apiKey = process.env.RESEND_API_KEY;

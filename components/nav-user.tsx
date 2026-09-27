@@ -22,7 +22,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
+import {
+  ChevronsUpDownIcon,
+  LogOutIcon,
+  ScanFaceIcon,
+} from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 
 function initials(name: string, email: string) {
@@ -60,10 +64,19 @@ export function NavUser() {
 
   const displayName = user.name || user.email
   const avatarSrc = user.image ?? undefined
+  const impersonatedBy = (
+    session?.session as { impersonatedBy?: string | null } | undefined
+  )?.impersonatedBy
 
   async function handleLogout() {
     await authClient.signOut()
     router.push("/login")
+    router.refresh()
+  }
+
+  async function handleStopImpersonating() {
+    await authClient.admin.stopImpersonating()
+    router.push("/dashboard/admin/users")
     router.refresh()
   }
 
@@ -109,6 +122,12 @@ export function NavUser() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {impersonatedBy ? (
+              <DropdownMenuItem onClick={handleStopImpersonating}>
+                <ScanFaceIcon />
+                Stop impersonating
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem onClick={handleLogout}>
               <LogOutIcon />
               Log out

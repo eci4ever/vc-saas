@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
 
 import { NavUser } from "@/components/nav-user"
@@ -19,109 +19,48 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { authClient } from "@/lib/auth-client"
 import {
-  Building2Icon,
-  CreditCardIcon,
-  FolderKanbanIcon,
-  KeyRoundIcon,
-  LayoutDashboardIcon,
-  PackageIcon,
-  RepeatIcon,
-  ScrollTextIcon,
-  SettingsIcon,
-  ShieldIcon,
-} from "lucide-react"
+  NAV_GROUP_LABELS,
+  NAV_ITEMS,
+  isPlatformAdmin,
+  type NavGroup,
+} from "@/lib/access"
+import { authClient } from "@/lib/auth-client"
+
+const GROUP_ORDER: NavGroup[] = ["workspace", "manage", "administration"]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = authClient.useSession()
-  const isAdmin =
-    (session?.user as { role?: string } | undefined)?.role === "admin"
   const { data: organizations } = authClient.useListOrganizations()
   const { data: activeOrganization } = authClient.useActiveOrganization()
+  const { data: activeMember } = authClient.useActiveMember()
+
+  const platformAdmin = isPlatformAdmin(
+    (session?.user as { role?: string } | undefined)?.role
+  )
+  const orgRole =
+    (activeMember as { role?: string | null } | undefined)?.role ?? null
 
   const teams =
     organizations && organizations.length > 0
       ? organizations.map((org) => ({
           id: org.id,
           name: org.name,
-          plan: "Free",
+          role: org.id === activeOrganization?.id ? orgRole : null,
         }))
-      : [{ id: "", name: "Personal", plan: "Free" }]
+      : [{ id: "", name: "Personal", role: null }]
 
   async function handleSelect(id: string) {
     if (!id) return
     await authClient.organization.setActive({ organizationId: id })
+    router.refresh()
   }
 
-  const workspaceItems = [
-    {
-      title: "Dashboard",
-      href: "/dashboard",
-      icon: LayoutDashboardIcon,
-      isActive: pathname === "/dashboard",
-    },
-    {
-      title: "Projects",
-      href: "/dashboard/projects",
-      icon: FolderKanbanIcon,
-      isActive: pathname.startsWith("/dashboard/projects"),
-    },
-    {
-      title: "Billing",
-      href: "/dashboard/billing",
-      icon: CreditCardIcon,
-      isActive: pathname.startsWith("/dashboard/billing"),
-    },
-    {
-      title: "API Keys",
-      href: "/dashboard/api-keys",
-      icon: KeyRoundIcon,
-      isActive: pathname.startsWith("/dashboard/api-keys"),
-    },
-    {
-      title: "Settings",
-      href: "/dashboard/settings",
-      icon: SettingsIcon,
-      isActive: pathname.startsWith("/dashboard/settings"),
-    },
-  ]
-
-  const adminItems = [
-    {
-      title: "Users",
-      href: "/dashboard/admin/users",
-      icon: ShieldIcon,
-      isActive:
-        pathname === "/dashboard/admin/users" ||
-        pathname === "/dashboard/admin",
-    },
-    {
-      title: "Organizations",
-      href: "/dashboard/admin/organizations",
-      icon: Building2Icon,
-      isActive: pathname.startsWith("/dashboard/admin/organizations"),
-    },
-    {
-      title: "Plans",
-      href: "/dashboard/admin/plans",
-      icon: PackageIcon,
-      isActive: pathname.startsWith("/dashboard/admin/plans"),
-    },
-    {
-      title: "Subscriptions",
-      href: "/dashboard/admin/subscriptions",
-      icon: RepeatIcon,
-      isActive: pathname.startsWith("/dashboard/admin/subscriptions"),
-    },
-    {
-      title: "Audit Log",
-      href: "/dashboard/admin/audit-log",
-      icon: ScrollTextIcon,
-      isActive: pathname.startsWith("/dashboard/admin/audit-log"),
-    },
-  ]
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    item.visible({ isPlatformAdmin: platformAdmin, orgRole })
+  )
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -133,46 +72,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {workspaceItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={item.isActive}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        {isAdmin ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administration</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={item.isActive}
-                      render={<Link href={item.href} />}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
+        {GROUP_ORDER.map((group) => {
+          const items = visibleItems.filter((item) => item.group === group)
+          if (items.length === 0) return null
+          return (
+            <SidebarGroup key={group}>
+              <SidebarGroupLabel>{NAV_GROUP_LABELS[group]}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map((item) => {
+                    const active =
+                      item.href === "/dashboard"
+                        ? pathname === "/dashboard"
+                        : pathname.startsWith(item.href)
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={active}
+                          render={<Link href={item.href} />}
+                        >
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

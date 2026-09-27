@@ -1,0 +1,224 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { authClient } from "@/lib/auth-client";
+
+import { useOrgData, type FullMember } from "../use-org";
+
+const inputClass =
+  "h-11 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white";
+
+export default function ManageMembersPage() {
+  const router = useRouter();
+  const { activeOrg, loading, members, teams, myRole, iAmOwner, refresh } =
+    useOrgData();
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  const [invitePending, setInvitePending] = useState(false);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  async function handleInvite(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!activeOrg?.id) return;
+    setInviteError(null);
+    setInviteMsg(null);
+    setInvitePending(true);
+    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const teamId = String(form.get("team") || "");
+    const { error } = await authClient.organization.inviteMember({
+      email: String(form.get("email")),
+      role: String(form.get("role")) as "member" | "admin",
+      organizationId: activeOrg.id,
+      ...(teamId ? { teamId } : {}),
+    });
+    setInvitePending(false);
+    if (error) {
+      setInviteError(error.message ?? "Failed to send invitation.");
+      return;
+    }
+    formEl.reset();
+    setInviteMsg(
+      teamId
+        ? "Invitation sent — they will join the selected team on accept."
+        : "Invitation sent by email."
+    );
+    router.refresh();
+  }
+
+  async function handleRole(member: FullMember, role: string) {
+    if (!activeOrg?.id) return;
+    setRowError(null);
+    const { error } = await authClient.organization.updateMemberRole({
+      memberId: member.id,
+      role,
+      organizationId: activeOrg.id,
+    });
+    if (error) {
+      setRowError(error.message ?? "Failed to update role.");
+      return;
+    }
+    refresh();
+    router.refresh();
+  }
+
+  async function handleRemove(member: FullMember) {
+    if (!activeOrg?.id) return;
+    setRowError(null);
+    const { error } = await authClient.organization.removeMember({
+      memberIdOrEmail: member.id,
+      organizationId: activeOrg.id,
+    });
+    if (error) {
+      setRowError(error.message ?? "Failed to remove member.");
+      return;
+    }
+    refresh();
+    router.refresh();
+  }
+
+  if (!activeOrg) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">
+            No active workspace. Create one to manage members.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Invite member</CardTitle>
+          <CardDescription>
+            They will receive an email invitation to join {activeOrg.name}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form className="flex flex-col gap-4" onSubmit={handleInvite}>
+            {inviteError ? (
+              <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                {inviteError}
+              </p>
+            ) : null}
+            {inviteMsg ? (
+              <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+                {inviteMsg}
+              </p>
+            ) : null}
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
+                Email
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="teammate@company.com"
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium sm:w-32">
+                Role
+                <select name="role" defaultValue="member" className={inputClass}>
+                  <option value="member">Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium sm:w-44">
+                Team (optional)
+                <select name="team" defaultValue="" className={inputClass}>
+                  <option value="">No team</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={invitePending}
+              className="flex h-11 items-center justify-center rounded-full bg-zinc-950 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+            >
+              {invitePending ? "Sending…" : "Send invitation"}
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>
+            {loading
+              ? "Loading members…"
+              : `${members.length} member${members.length === 1 ? "" : "s"} in ${activeOrg.name}.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {rowError ? (
+            <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              {rowError}
+            </p>
+          ) : null}
+          {members.map((member) => {
+            const roles = member.role.split(",").map((r) => r.trim());
+            return (
+              <div
+                key={member.id}
+                className="flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center"
+              >
+                <div className="grid flex-1 leading-tight">
+                  <span className="truncate font-medium">
+                    {member.user?.name ?? member.userId}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {member.user?.email ?? ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={roles[0] ?? "member"}
+                    onChange={(e) => handleRole(member, e.target.value)}
+                    className="h-9 rounded-lg border border-zinc-200 bg-transparent px-2 text-sm outline-none dark:border-white/15"
+                  >
+                    <option value="member">Member</option>
+                    <option value="admin">Admin</option>
+                    {iAmOwner ? <option value="owner">Owner</option> : null}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(member)}
+                    className="flex h-9 items-center rounded-lg border border-red-500/30 px-3 text-sm text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {!loading && myRole ? (
+            <p className="text-xs text-muted-foreground">
+              Your role: <span className="capitalize">{myRole}</span>. Only owners
+              can assign the owner role.
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

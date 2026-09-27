@@ -18,7 +18,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
-import { getRecentAdminActivity, requireAdmin } from "@/lib/admin";
+import {
+  describeAdminAction,
+  getRecentAdminActivity,
+  requireAdmin,
+} from "@/lib/admin";
 
 import { UserRowActions } from "./user-row-actions";
 
@@ -169,14 +173,7 @@ export default async function AdminUsersPage({
                     <div className="flex flex-wrap items-center gap-x-2">
                       <span className="font-medium">{entry.actorEmail}</span>
                       <span className="text-muted-foreground">
-                        {entry.action === "ban" && "banned"}
-                        {entry.action === "unban" && "unbanned"}
-                        {entry.action === "set-role" &&
-                          `changed role${
-                            entry.oldRole || entry.newRole
-                              ? ` (${entry.oldRole ?? "?"} → ${entry.newRole ?? "?"})`
-                              : ""
-                          }`}
+                        {describeAdminAction(entry)}
                       </span>
                       <span className="font-medium">{entry.targetEmail}</span>
                     </div>

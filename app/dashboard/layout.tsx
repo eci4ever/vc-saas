@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
   SidebarInset,
@@ -22,7 +23,10 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        <ImpersonationBanner />
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   );
 }

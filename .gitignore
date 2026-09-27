@@ -42,3 +42,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only e2e suite (not committed per decision)
+.e2e/
+playwright.config.ts
+test-results/
+playwright-report/

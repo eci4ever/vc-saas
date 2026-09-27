@@ -1,7 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -15,7 +26,12 @@ const inputClass =
   "h-11 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white";
 
 export default function ProfileSettingsPage() {
+  const router = useRouter();
   const { data: session } = authClient.useSession();
+  const { data: activeOrg } = authClient.useActiveOrganization();
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leavePending, setLeavePending] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -67,6 +83,24 @@ export default function ProfileSettingsPage() {
     }
     formEl.reset();
     setPwMsg("Password changed. Other sessions were signed out.");
+  }
+
+  async function handleLeaveOrg() {
+    if (!activeOrg?.id) return;
+    setLeavePending(true);
+    setLeaveError(null);
+    const { error } = await authClient.$fetch("/organization/leave", {
+      method: "POST",
+      body: { organizationId: activeOrg.id },
+    });
+    setLeavePending(false);
+    if (error) {
+      setLeaveError(error.message ?? "Failed to leave the workspace.");
+      return;
+    }
+    setLeaveOpen(false);
+    router.push("/dashboard");
+    router.refresh();
   }
 
   return (
@@ -174,6 +208,50 @@ export default function ProfileSettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {activeOrg ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Membership</CardTitle>
+            <CardDescription>
+              You are currently in {activeOrg.name}. Leaving removes you from
+              its members and teams.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {leaveError ? (
+              <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                {leaveError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setLeaveOpen(true)}
+              className="flex h-11 items-center justify-center rounded-full border border-red-500/40 px-5 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
+            >
+              Leave workspace
+            </button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave {activeOrg?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will lose access to this workspace until someone invites you
+              back. Owners cannot leave if they are the last owner.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={leavePending}>Stay</AlertDialogCancel>
+            <AlertDialogAction disabled={leavePending} onClick={handleLeaveOrg}>
+              {leavePending ? "Leaving…" : "Leave workspace"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

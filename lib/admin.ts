@@ -75,10 +75,28 @@ export async function assertCanModerate(
   }
 }
 
+/** For actions that simply never apply to the caller's own account. */
+export function assertNotSelf(adminId: string, target: TargetUser): void {
+  if (target.id === adminId) {
+    throw new Error("You cannot do this to your own account.");
+  }
+}
+
+export type AdminAction =
+  | "ban"
+  | "unban"
+  | "set-role"
+  | "delete-user"
+  | "set-password"
+  | "revoke-sessions"
+  | "impersonate"
+  | "org-rename"
+  | "org-delete";
+
 export async function logAdminAction(entry: {
   actorUserId: string;
   actorEmail: string;
-  action: "ban" | "unban" | "set-role";
+  action: AdminAction;
   targetUserId: string;
   targetEmail: string;
   oldRole?: string | null;
@@ -94,4 +112,40 @@ export async function getRecentAdminActivity(limit = 20) {
     .from(adminAuditLog)
     .orderBy(desc(adminAuditLog.createdAt))
     .limit(limit);
+}
+
+type AuditEntry = {
+  action: string;
+  oldRole?: string | null;
+  newRole?: string | null;
+};
+
+/** Human sentence fragment between actor and target, e.g. "Ada banned". */
+export function describeAdminAction(entry: AuditEntry): string {
+  switch (entry.action) {
+    case "ban":
+      return "banned";
+    case "unban":
+      return "unbanned";
+    case "set-role":
+      return `changed role${
+        entry.oldRole || entry.newRole
+          ? ` (${entry.oldRole ?? "?"} → ${entry.newRole ?? "?"})`
+          : ""
+      }`;
+    case "delete-user":
+      return "deleted user";
+    case "set-password":
+      return "set password for";
+    case "revoke-sessions":
+      return "revoked sessions of";
+    case "impersonate":
+      return "started impersonating";
+    case "org-rename":
+      return "renamed organization";
+    case "org-delete":
+      return "deleted organization";
+    default:
+      return entry.action;
+  }
 }

@@ -1,3 +1,5 @@
+import { ilike, or, sql } from "drizzle-orm";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,30 +17,11 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { db } from "@/db";
+import { member, organization, team } from "@/db/auth-schema";
+import { requireAdmin } from "@/lib/admin";
 
-const MOCK_ORGANIZATIONS = [
-  {
-    name: "Acme Corp",
-    slug: "acme-corp",
-    members: 12,
-    plan: "Pro",
-    created: "Jun 3, 2026",
-  },
-  {
-    name: "Beta Studio",
-    slug: "beta-studio",
-    members: 4,
-    plan: "Free",
-    created: "Aug 19, 2026",
-  },
-  {
-    name: "Gamma Labs",
-    slug: "gamma-labs",
-    members: 27,
-    plan: "Enterprise",
-    created: "Mar 11, 2026",
-  },
-];
+import { OrgRowActions } from "./org-row-actions";
 
 export default async function AdminOrganizationsPage({
   searchParams,
@@ -46,14 +29,38 @@ export default async function AdminOrganizationsPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const query = q?.trim().toLowerCase() ?? "";
-  const organizations = query
-    ? MOCK_ORGANIZATIONS.filter(
-        (org) =>
-          org.name.toLowerCase().includes(query) ||
-          org.slug.includes(query)
-      )
-    : MOCK_ORGANIZATIONS;
+  const query = q?.trim() ? q.trim() : undefined;
+
+  await requireAdmin();
+
+  const rows = await db
+    .select({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      createdAt: organization.createdAt,
+      memberCount: sql<number>`(select count(*)::int from ${member} where ${member.organizationId} = ${organization.id})`,
+      teamCount: sql<number>`(select count(*)::int from ${team} where ${team.organizationId} = ${organization.id})`,
+    })
+    .from(organization)
+    .where(
+      query
+        ? or(
+            ilike(organization.name, `%${query}%`),
+            ilike(organization.slug, `%${query}%`)
+          )
+        : undefined
+    )
+    .orderBy(organization.createdAt);
+
+  // Header counts reflect the whole table, not just the filtered page.
+  const [totals] = await db
+    .select({
+      orgs: sql<number>`(select count(*)::int from ${organization})`,
+      members: sql<number>`(select count(*)::int from ${member})`,
+      teams: sql<number>`(select count(*)::int from ${team})`,
+    })
+    .from(sql`(select 1) as _`);
 
   return (
     <>
@@ -78,26 +85,26 @@ export default async function AdminOrganizationsPage({
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Organizations
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Mock UI — {MOCK_ORGANIZATIONS.length} example workspaces.
-          </p>
-        </div>
-        <div>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
+            <p className="text-sm text-muted-foreground">
+              {totals?.orgs ?? rows.length} organizations · {totals?.members ?? 0}{" "}
+              memberships · {totals?.teams ?? 0} teams. Renames and deletions
+              here are written to the audit log.
+            </p>
+          </div>
           <Card>
             <CardHeader>
               <CardTitle>All organizations</CardTitle>
               <CardDescription>Search by name or slug.</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
+            <CardContent className="flex flex-col gap-4">
               <form method="get" className="flex gap-2">
                 <input
                   name="q"
-                  defaultValue={q ?? ""}
-                  placeholder="Search name or slug…"
+                  defaultValue={query ?? ""}
+                  placeholder="Search organizations…"
                   className="h-10 flex-1 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white"
                 />
                 <button
@@ -107,32 +114,27 @@ export default async function AdminOrganizationsPage({
                   Search
                 </button>
               </form>
-              {organizations.map((org) => (
-                <div
-                  key={org.slug}
-                  className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center"
-                >
-                  <div className="grid flex-1 leading-tight">
-                    <span className="truncate font-medium">
-                      {org.name}
-                      <span className="ml-2 rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-                        {org.plan}
-                      </span>
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {org.slug} · {org.members} members · created {org.created}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    disabled
-                    title="Mock only"
-                    className="flex h-9 items-center rounded-lg border border-zinc-200 px-3 text-sm opacity-60 dark:border-white/15"
+              {rows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No organizations found.</p>
+              ) : (
+                rows.map((org) => (
+                  <div
+                    key={org.id}
+                    className="flex flex-col gap-2 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center"
                   >
-                    View
-                  </button>
-                </div>
-              ))}
+                    <div className="grid flex-1 leading-tight">
+                      <span className="truncate font-medium">{org.name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {org.slug} · {org.memberCount} member
+                        {org.memberCount === 1 ? "" : "s"} · {org.teamCount} team
+                        {org.teamCount === 1 ? "" : "s"} · created{" "}
+                        {new Date(org.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <OrgRowActions organizationId={org.id} orgName={org.name} />
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

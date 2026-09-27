@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { getRecentAdminActivity } from "@/lib/admin";
+import { describeAdminAction, getRecentAdminActivity } from "@/lib/admin";
 
 export default async function AdminAuditLogPage({
   searchParams,
@@ -101,14 +101,7 @@ export default async function AdminAuditLogPage({
                     <div className="flex flex-wrap items-center gap-x-2">
                       <span className="font-medium">{entry.actorEmail}</span>
                       <span className="text-muted-foreground">
-                        {entry.action === "ban" && "banned"}
-                        {entry.action === "unban" && "unbanned"}
-                        {entry.action === "set-role" &&
-                          `changed role${
-                            entry.oldRole || entry.newRole
-                              ? ` (${entry.oldRole ?? "?"} → ${entry.newRole ?? "?"})`
-                              : ""
-                          }`}
+                        {describeAdminAction(entry)}
                       </span>
                       <span className="font-medium">{entry.targetEmail}</span>
                     </div>

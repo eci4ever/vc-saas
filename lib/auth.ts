@@ -57,12 +57,18 @@ export const auth = betterAuth({
       teams: { enabled: true },
       async sendInvitationEmail(data) {
         const baseUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-        await sendOrganizationInvitation({
-          to: data.email,
-          inviterName: data.inviter.user.name,
-          orgName: data.organization.name,
-          inviteLink: `${baseUrl}/accept-invitation/${data.id}`,
-        });
+        try {
+          await sendOrganizationInvitation({
+            to: data.email,
+            inviterName: data.inviter.user.name,
+            orgName: data.organization.name,
+            inviteLink: `${baseUrl}/accept-invitation/${data.id}`,
+          });
+        } catch (e) {
+          // The invitation row already exists and can be accepted via its
+          // link; an email outage must not fail the invite itself.
+          console.error("Failed to send invitation email:", e);
+        }
       },
     }),
   ],

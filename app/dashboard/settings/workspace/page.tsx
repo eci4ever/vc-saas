@@ -1,7 +1,18 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -9,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { isOrgOwner } from "@/lib/access";
 import { authClient } from "@/lib/auth-client";
 
 const inputClass =
@@ -17,19 +29,23 @@ const inputClass =
 type TeamRow = { id: string; name: string };
 
 export default function WorkspaceSettingsPage() {
+  const router = useRouter();
   const { data: activeOrg } = authClient.useActiveOrganization();
+  const { data: activeMember } = authClient.useActiveMember();
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
 
   useEffect(() => {
     if (!activeOrg?.id) return;
     authClient.organization
       .getFullOrganization({ query: { organizationId: activeOrg.id } })
       .then(({ data }) => {
-        const teams = (data as { teams?: TeamRow[] } | null)?.teams;
-        if (Array.isArray(teams)) setTeams(teams);
+        const orgTeams = (data as { teams?: TeamRow[] } | null)?.teams;
+        if (Array.isArray(orgTeams)) setTeams(orgTeams);
       });
   }, [activeOrg?.id]);
 
@@ -53,6 +69,23 @@ export default function WorkspaceSettingsPage() {
       return;
     }
     setMsg("Workspace updated.");
+    router.refresh();
+  }
+
+  async function handleDeleteOrg() {
+    if (!activeOrg?.id) return;
+    setDeletePending(true);
+    const { error } = await authClient.organization.delete({
+      organizationId: activeOrg.id,
+    });
+    setDeletePending(false);
+    if (error) {
+      setError(error.message ?? "Failed to delete workspace.");
+      setDeleteOpen(false);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
   }
 
   if (!activeOrg) {
@@ -66,6 +99,10 @@ export default function WorkspaceSettingsPage() {
       </Card>
     );
   }
+
+  const owner = isOrgOwner(
+    (activeMember as { role?: string | null } | undefined)?.role ?? null
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,6 +176,45 @@ export default function WorkspaceSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {owner ? (
+        <Card className="border-red-500/30 dark:border-red-500/30">
+          <CardHeader>
+            <CardTitle className="text-red-700 dark:text-red-400">Danger zone</CardTitle>
+            <CardDescription>
+              Deleting this workspace removes its members, teams, and invitations
+              for everyone. This cannot be undone.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="flex h-11 items-center rounded-full border border-red-500/40 px-5 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
+            >
+              Delete workspace
+            </button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{activeOrg.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every member, team, and pending invitation in this workspace will
+              be removed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePending}>Keep workspace</AlertDialogCancel>
+            <AlertDialogAction disabled={deletePending} onClick={handleDeleteOrg}>
+              {deletePending ? "Deleting…" : "Delete forever"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

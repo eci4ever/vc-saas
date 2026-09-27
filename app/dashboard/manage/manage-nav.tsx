@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/dashboard/settings/profile", label: "Profile" },
-  { href: "/dashboard/settings/workspace", label: "Workspace" },
+  { href: "/dashboard/manage/members", label: "Members" },
+  { href: "/dashboard/manage/invitations", label: "Invitations" },
+  { href: "/dashboard/manage/teams", label: "Teams" },
 ];
 
-export function SettingsNav() {
+export function ManageNav() {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 rounded-full border border-zinc-200 p-1 text-sm dark:border-white/15">

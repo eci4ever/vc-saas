@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const tabs = [
-  { href: "/dashboard/settings/profile", label: "Profile" },
-  { href: "/dashboard/settings/workspace", label: "Workspace" },
-];
+const tabs = [{ href: "/dashboard/settings/workspace", label: "Workspace" }];
 
 export function SettingsNav() {
   const pathname = usePathname();

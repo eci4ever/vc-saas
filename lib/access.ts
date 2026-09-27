@@ -108,8 +108,9 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Settings",
     href: "/dashboard/settings",
     icon: SettingsIcon,
-    group: "workspace",
-    visible: () => true,
+    // Settings is workspace-only now that profile lives on the Account page.
+    group: "manage",
+    visible: (nav) => isOrgManager(nav.orgRole),
   },
   {
     title: "Members",

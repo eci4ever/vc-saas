@@ -8,14 +8,17 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { requireOrgManager } from "@/lib/guards";
 
 import { SettingsNav } from "./settings-nav";
 
-export default function SettingsLayout({
+export default async function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Settings is workspace-only; account settings live on /dashboard/account.
+  await requireOrgManager();
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

@@ -26,6 +26,7 @@ import {
   ChevronsUpDownIcon,
   LogOutIcon,
   ScanFaceIcon,
+  UserRoundIcon,
 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 
@@ -122,6 +123,15 @@ export function NavUser() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                router.push("/dashboard/account")
+                router.refresh()
+              }}
+            >
+              <UserRoundIcon />
+              Account
+            </DropdownMenuItem>
             {impersonatedBy ? (
               <DropdownMenuItem onClick={handleStopImpersonating}>
                 <ScanFaceIcon />

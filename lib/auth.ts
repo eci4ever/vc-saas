@@ -1,10 +1,10 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization } from "better-auth/plugins";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { member } from "@/db/auth-schema";
+import { member, user as userTable } from "@/db/auth-schema";
 import { sendOrganizationInvitation } from "@/lib/email";
 
 export const auth = betterAuth({
@@ -15,6 +15,19 @@ export const auth = betterAuth({
     enabled: true,
   },
   databaseHooks: {
+    user: {
+      create: {
+        // The first account to exist owns the fresh deployment, so it gets
+        // platform admin. Everyone after that gets the plugin's default role.
+        before: async (newUser) => {
+          const [row] = await db
+            .select({ value: count() })
+            .from(userTable);
+          if (Number(row?.value ?? 0) > 0) return;
+          return { data: { ...newUser, role: "admin" } };
+        },
+      },
+    },
     session: {
       create: {
         // Default to the user's first workspace so the app always has

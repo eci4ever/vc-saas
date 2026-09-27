@@ -1,11 +1,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, organization } from "better-auth/plugins";
+import { admin, organization, twoFactor } from "better-auth/plugins";
 import { count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { member, user as userTable } from "@/db/auth-schema";
-import { sendOrganizationInvitation } from "@/lib/email";
+import {
+  sendOrganizationInvitation,
+  sendVerificationEmail,
+} from "@/lib/email";
+import { BRAND_NAME } from "@/lib/brand";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -13,6 +17,26 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    // Also used for change-email confirmations: user.email is the address
+    // being verified (the new one for change-email requests).
+    async sendVerificationEmail({ user, url }) {
+      try {
+        await sendVerificationEmail({ to: user.email, url });
+      } catch (e) {
+        // Verification is optional at sign-in; an email outage must not
+        // fail the flow. The Account page offers a resend button.
+        console.error("Failed to send verification email:", e);
+      }
+    },
+  },
+  user: {
+    changeEmail: {
+      enabled: true,
+    },
   },
   databaseHooks: {
     user: {
@@ -53,6 +77,9 @@ export const auth = betterAuth({
   },
   plugins: [
     admin(),
+    twoFactor({
+      issuer: BRAND_NAME,
+    }),
     organization({
       teams: { enabled: true },
       async sendInvitationEmail(data) {

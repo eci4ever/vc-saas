@@ -4,7 +4,16 @@ import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { StatusIndicators, type Status } from "@/components/status-indicators";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { formatRm, PLANS } from "@/lib/plans";
 
 import { db } from "@/db";
 
@@ -56,8 +65,8 @@ export default async function Home() {
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-6 pb-16">
-        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-6 text-center">
+      <main className="flex flex-1 flex-col px-6 pb-16">
+        <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center gap-6 py-16 text-center">
           <span className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground duration-700">
             <SparklesIcon className="size-3.5" />
             Built with Next.js, better-auth &amp; Drizzle
@@ -74,7 +83,7 @@ export default async function Home() {
             Tailwind. Clone it, brand it, charge for it.
           </p>
 
-          <div className="flex w-full animate-in fade-in slide-in-from-bottom-2 items-center justify-center gap-3 fill-mode-both delay-300 duration-700 sm:w-auto">
+          <div className="flex w-full animate-in flex-col items-center justify-center gap-3 fill-mode-both delay-300 duration-700 sm:flex-row">
             <Button
               render={<Link href="/signup" />}
               nativeButton={false}
@@ -96,6 +105,64 @@ export default async function Home() {
           <div className="flex animate-in fade-in flex-col items-center gap-3 fill-mode-both delay-[450ms] duration-700">
             <StatusIndicators initialDb={dbStatus} />
             <p className="text-xs text-muted-foreground">{STACK.join(" · ")}</p>
+          </div>
+        </section>
+
+        <section
+          id="pricing"
+          className="mx-auto flex w-full max-w-5xl flex-col items-center gap-8 border-t border-border/60 py-16"
+        >
+          <div className="flex flex-col items-center gap-2 text-center">
+            <h2 className="font-heading text-3xl font-semibold tracking-tight">
+              Simple pricing
+            </h2>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Paid per workspace through Billplz (FPX). Save 10% quarterly or
+              20% yearly — cancel anytime.
+            </p>
+          </div>
+          <div className="grid w-full gap-4 md:grid-cols-3">
+            {PLANS.map((plan) => (
+              <Card key={plan.id} className="flex flex-col">
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    {plan.name}
+                    {plan.id === "starter" ? (
+                      <Badge variant="secondary">Popular</Badge>
+                    ) : null}
+                  </CardTitle>
+                  <CardDescription>{plan.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col gap-4">
+                  <p className="text-3xl font-semibold tracking-tight">
+                    {formatRm(plan.monthlySen)}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {plan.monthlySen === 0 ? " forever" : " / month"}
+                    </span>
+                  </p>
+                  {plan.monthlySen > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      RM{(Math.round(plan.monthlySen * 3 * 0.9) / 100).toFixed(2)}{" "}
+                      quarterly · RM
+                      {(Math.round(plan.monthlySen * 12 * 0.8) / 100).toFixed(2)}{" "}
+                      yearly
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      One free workspace, all core features.
+                    </p>
+                  )}
+                  <Button
+                    render={<Link href="/signup" />}
+                    nativeButton={false}
+                    variant={plan.id === "free" ? "outline" : "default"}
+                    className="mt-auto w-full rounded-full"
+                  >
+                    {plan.id === "free" ? "Start free" : `Choose ${plan.name}`}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </section>
       </main>

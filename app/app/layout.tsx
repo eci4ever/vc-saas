@@ -8,6 +8,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { ensurePersonalWorkspace } from "@/lib/ensure-workspace";
 
 export default async function DashboardLayout({
   children,
@@ -20,6 +21,9 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
+  // Google-first accounts skip the signup form's workspace creation; heal
+  // them on their first /app visit.
+  await ensurePersonalWorkspace();
   return (
     <SidebarProvider>
       <AppSidebar />

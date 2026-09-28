@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/app/members", label: "Members" },
-  { href: "/app/invitations", label: "Invitations" },
-  { href: "/app/teams", label: "Teams" },
+  { href: "/app/manage/members", label: "Members" },
+  { href: "/app/manage/invitations", label: "Invitations" },
+  { href: "/app/manage/teams", label: "Teams" },
 ];
 
 export function ManageNav() {

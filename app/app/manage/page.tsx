@@ -40,19 +40,19 @@ export default async function ManageOverviewPage() {
       title: "Members",
       value: members.value,
       description: "People with access to this workspace.",
-      href: "/app/members",
+      href: "/app/manage/members",
     },
     {
       title: "Teams",
       value: teams.value,
       description: "Groups that organize members.",
-      href: "/app/teams",
+      href: "/app/manage/teams",
     },
     {
       title: "Pending invitations",
       value: pending.value,
       description: "Waiting for a response.",
-      href: "/app/invitations",
+      href: "/app/manage/invitations",
     },
   ];
 

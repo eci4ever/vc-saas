@@ -15,14 +15,39 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getAccessContext } from "@/lib/guards";
+import { isOrgOwner } from "@/lib/access";
+import { getSubscription, listPayments } from "@/lib/billing";
+import { formatRm, planName } from "@/lib/plans";
 
-const MOCK_INVOICES = [
-  { id: "INV-003", date: "Sep 1, 2026", amount: "$29.00", status: "Paid" },
-  { id: "INV-002", date: "Aug 1, 2026", amount: "$29.00", status: "Paid" },
-  { id: "INV-001", date: "Jul 1, 2026", amount: "$29.00", status: "Paid" },
-];
+import { BillingActions } from "./billing-actions";
 
-export default function BillingPage() {
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  expired: "Expired",
+  canceled: "Canceled",
+};
+
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ billplz?: string; billplz_id?: string }>;
+}) {
+  const { billplz, billplz_id: billplzId } = await searchParams;
+  const ctx = await getAccessContext();
+  if (!ctx) return null;
+  const organizationId = ctx.activeOrganizationId;
+  const owner = isOrgOwner(ctx.orgRole);
+
+  const subscription = organizationId
+    ? await getSubscription(organizationId)
+    : null;
+  const invoices = organizationId ? await listPayments(organizationId) : [];
+
+  const effectivePlan = subscription?.planId ?? "free";
+  const effectiveStatus =
+    subscription?.status ?? "active";
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -49,56 +74,102 @@ export default function BillingPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="text-sm text-muted-foreground">
-            Mock UI — connect a payment provider later.
+            Subscriptions are per workspace and paid through Billplz (FPX).
           </p>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Current plan</CardTitle>
-            <CardDescription>
-              You are on the Free plan. Mock data only.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-                Free
-              </span>
-              <span className="text-sm text-muted-foreground">
-                $0 / month · renews never
-              </span>
-            </div>
-            <button
-              type="button"
-              disabled
-              title="Mock only"
-              className="flex h-9 items-center justify-center rounded-full bg-zinc-950 px-4 text-sm font-medium text-white opacity-60 dark:bg-white dark:text-black"
-            >
-              Upgrade to Pro
-            </button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoices</CardTitle>
-            <CardDescription>Recent invoices for this workspace.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {MOCK_INVOICES.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
-              >
-                <span className="font-medium">{invoice.id}</span>
-                <span className="text-muted-foreground">{invoice.date}</span>
-                <span className="font-medium">{invoice.amount}</span>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-                  {invoice.status}
-                </span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+
+        {!organizationId ? (
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              You have no active workspace. Create one from the workspace
+              switcher to manage billing.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Current plan
+                  <span className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    {planName(effectivePlan)}
+                  </span>
+                  {subscription ? (
+                    <span className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      {STATUS_LABELS[effectiveStatus]}
+                    </span>
+                  ) : null}
+                </CardTitle>
+                <CardDescription>
+                  {subscription
+                    ? `${subscription.cycle} billing · period ${subscription.periodStart.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })} – ${subscription.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}`
+                    : "You are on the Free plan — no subscription yet."}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <BillingActions
+              isOwner={owner}
+              hasSubscription={!!subscription}
+              returningFromBillplz={
+                billplz === "return" && !!billplzId ? billplzId : null
+              }
+            />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoices</CardTitle>
+                <CardDescription>
+                  Every Billplz bill raised for this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No invoices yet.
+                  </p>
+                ) : (
+                  invoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center"
+                    >
+                      <span className="flex-1 font-medium">
+                        {planName(invoice.planId)} · {invoice.cycle}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {invoice.createdAt.toLocaleDateString("en-MY", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <span className="font-medium">
+                        {formatRm(invoice.amount)}
+                      </span>
+                      {invoice.status === "paid" ? (
+                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
+                          Paid
+                        </span>
+                      ) : invoice.status === "due" ? (
+                        <a
+                          href={invoice.billUrl}
+                          className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 underline dark:text-zinc-300"
+                        >
+                          Pay now
+                        </a>
+                      ) : (
+                        <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </>
   );

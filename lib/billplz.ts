@@ -2,12 +2,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Minimal Billplz API v3 client. BILLPLZ_MODE picks the environment:
- * sandbox bills run on billplz-staging.com, production on www.billplz.com.
+ * sandbox bills run on www.billplz-sandbox.com, production on www.billplz.com.
  */
 function baseUrl(): string {
   return process.env.BILLPLZ_MODE === "production"
     ? "https://www.billplz.com"
-    : "https://billplz-staging.com";
+    : "https://www.billplz-sandbox.com";
 }
 
 function authHeader(): string {

@@ -47,9 +47,9 @@ const DATE_FMT = { day: "numeric", month: "short", year: "numeric" } as const;
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ billplz?: string; billplz_id?: string }>;
+  searchParams: Promise<{ billplz?: string; "billplz[id]"?: string }>;
 }) {
-  const { billplz, billplz_id: billplzId } = await searchParams;
+  const { billplz, "billplz[id]": billplzId } = await searchParams;
   const ctx = await getAccessContext();
   if (!ctx) return null;
   // Billing is a management page now: the sidebar hides it from plain

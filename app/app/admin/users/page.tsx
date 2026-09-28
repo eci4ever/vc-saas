@@ -52,7 +52,7 @@ export default async function AdminUsersPage({
     <>
       <PageHeader title="Users" />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <div className="flex w-full flex-col gap-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
             <p className="text-sm text-muted-foreground">

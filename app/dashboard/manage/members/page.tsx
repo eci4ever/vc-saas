@@ -4,6 +4,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -21,10 +31,18 @@ export default function ManageMembersPage() {
   const router = useRouter();
   const { activeOrg, loading, members, teams, myRole, iAmOwner, refresh } =
     useOrgData();
+  const { data: session } = authClient.useSession();
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [invitePending, setInvitePending] = useState(false);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<FullMember | null>(null);
+  const [removePending, setRemovePending] = useState(false);
+
+  const myUserId = session?.user?.id ?? null;
+  const ownerCount = members.filter((m) =>
+    m.role.split(",").includes("owner")
+  ).length;
 
   async function handleInvite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -71,17 +89,21 @@ export default function ManageMembersPage() {
     router.refresh();
   }
 
-  async function handleRemove(member: FullMember) {
-    if (!activeOrg?.id) return;
+  async function handleRemoveConfirm() {
+    if (!removing || !activeOrg?.id) return;
     setRowError(null);
+    setRemovePending(true);
     const { error } = await authClient.organization.removeMember({
-      memberIdOrEmail: member.id,
+      memberIdOrEmail: removing.id,
       organizationId: activeOrg.id,
     });
+    setRemovePending(false);
     if (error) {
+      setRemoving(null);
       setRowError(error.message ?? "Failed to remove member.");
       return;
     }
+    setRemoving(null);
     refresh();
     router.refresh();
   }
@@ -177,6 +199,10 @@ export default function ManageMembersPage() {
           ) : null}
           {members.map((member) => {
             const roles = member.role.split(",").map((r) => r.trim());
+            const isSelf = member.userId === myUserId;
+            const isLastOwnerRow =
+              roles.includes("owner") && ownerCount <= 1;
+            const roleLocked = isSelf || isLastOwnerRow;
             return (
               <div
                 key={member.id}
@@ -185,6 +211,11 @@ export default function ManageMembersPage() {
                 <div className="grid flex-1 leading-tight">
                   <span className="truncate font-medium">
                     {member.user?.name ?? member.userId}
+                    {isSelf ? (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        (you)
+                      </span>
+                    ) : null}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
                     {member.user?.email ?? ""}
@@ -193,20 +224,36 @@ export default function ManageMembersPage() {
                 <div className="flex items-center gap-2">
                   <select
                     value={roles[0] ?? "member"}
+                    disabled={roleLocked}
+                    title={
+                      isSelf
+                        ? "You cannot change your own role."
+                        : isLastOwnerRow
+                          ? "The last owner cannot be demoted."
+                          : undefined
+                    }
                     onChange={(e) => handleRole(member, e.target.value)}
-                    className="h-9 rounded-lg border border-zinc-200 bg-transparent px-2 text-sm outline-none dark:border-white/15"
+                    className="h-9 rounded-lg border border-zinc-200 bg-transparent px-2 text-sm outline-none disabled:opacity-60 dark:border-white/15"
                   >
                     <option value="member">Member</option>
                     <option value="admin">Admin</option>
                     {iAmOwner ? <option value="owner">Owner</option> : null}
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(member)}
-                    className="flex h-9 items-center rounded-lg border border-red-500/30 px-3 text-sm text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
-                  >
-                    Remove
-                  </button>
+                  {!isSelf ? (
+                    <button
+                      type="button"
+                      disabled={isLastOwnerRow}
+                      title={
+                        isLastOwnerRow
+                          ? "The last owner cannot be removed."
+                          : undefined
+                      }
+                      onClick={() => setRemoving(member)}
+                      className="flex h-9 items-center rounded-lg border border-red-500/30 px-3 text-sm text-red-700 transition-colors hover:bg-red-500/10 disabled:opacity-60 dark:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
@@ -219,6 +266,39 @@ export default function ManageMembersPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={removing !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Remove {removing?.user?.name ?? "this member"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They lose access to {activeOrg?.name ?? "this workspace"}{" "}
+              immediately. Any pending invitations and team assignments go with
+              them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removePending}>Back</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removePending}
+              onClick={(e) => {
+                e.preventDefault();
+                handleRemoveConfirm();
+              }}
+              className="text-red-600 dark:text-red-400"
+            >
+              {removePending ? "Removing…" : "Remove member"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -54,9 +54,16 @@ function deviceLabel(userAgent?: string | null): string {
 
 export default function AccountPage() {
   const router = useRouter();
-  const { data: session, isPending } = authClient.useSession();
-  const user = session?.user;
-  const currentToken = session?.session?.token;
+  const { data: session } = authClient.useSession();
+  // Session refetches (e.g. after change-email) flip isPending and would
+  // unmount the cards, losing in-flight form feedback. Keep the last known
+  // user so the page only shows its loading state before the very first
+  // session arrives.
+  // Deliberately no isPending here: session refetches (change-email etc.)
+  // keep the last user, and unmounting the cards would drop in-flight
+  // form feedback.
+  const user = session?.user ?? null;
+  const currentToken = session?.session?.token ?? null;
 
   // profile
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
@@ -154,6 +161,9 @@ export default function AccountPage() {
     setEmailMsg(null);
     setEmailPending(true);
     const form = new FormData(e.currentTarget);
+    // Capture the element before awaiting — currentTarget is nulled after
+    // the synchronous handler returns.
+    const formEl = e.currentTarget as HTMLFormElement;
     const { error } = await authClient.changeEmail({
       newEmail: String(form.get("newEmail")),
       callbackURL: "/dashboard/account",
@@ -163,7 +173,7 @@ export default function AccountPage() {
       setEmailError(error.message ?? "Failed to request email change.");
       return;
     }
-    (e.currentTarget as HTMLFormElement).reset();
+    formEl.reset();
     setEmailMsg(
       "Confirmation sent to your new email — click the link to finish the change."
     );
@@ -288,7 +298,7 @@ export default function AccountPage() {
     router.refresh();
   }
 
-  if (isPending || !user) {
+  if (!user) {
     return (
       <div className="mx-auto w-full max-w-2xl p-4 pt-8">
         <p className="text-sm text-muted-foreground">Loading account…</p>

@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import * as React from "react"
-import { MenuIcon } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
@@ -18,9 +17,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMobileRailContext,
   SidebarRail,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import {
   NAV_GROUP_LABELS,
@@ -32,41 +29,6 @@ import { authClient } from "@/lib/auth-client"
 
 const GROUP_ORDER: NavGroup[] = ["workspace", "manage", "administration"]
 
-/**
- * The header slot renders twice on mobile (once inside the always-visible
- * icon rail, once inside the sheet), each under its own rail context: the
- * rail shows the menu toggle that opens the sheet, the sheet shows the
- * workspace switcher.
- */
-function SidebarTopSlot({
-  teams,
-  activeId,
-  onSelect,
-}: {
-  teams: { id: string; name: string; role: string | null; logo?: string | null }[]
-  activeId?: string
-  onSelect?: (id: string) => void
-}) {
-  const { isMobileRail } = React.useContext(SidebarMobileRailContext)
-  const { setOpenMobile } = useSidebar()
-
-  if (isMobileRail) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            tooltip="Open menu"
-            onClick={() => setOpenMobile(true)}
-          >
-            <MenuIcon />
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    )
-  }
-  return <TeamSwitcher teams={teams} activeId={activeId} onSelect={onSelect} />
-}
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
@@ -74,9 +36,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: organizations } = authClient.useListOrganizations()
   const { data: activeOrganization } = authClient.useActiveOrganization()
   const { data: activeMember } = authClient.useActiveMember()
-  // On the permanent mobile rail the toggle sits above the workspace
-  // switcher; in the full sidebar and on desktop it is not needed.
-  const { isMobileRail } = React.useContext(SidebarMobileRailContext)
 
   const platformAdmin = isPlatformAdmin(
     (session?.user as { role?: string } | undefined)?.role
@@ -107,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarTopSlot
+        <TeamSwitcher
           teams={teams}
           activeId={activeOrganization?.id ?? teams[0]?.id}
           onSelect={handleSelect}

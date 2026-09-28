@@ -10,16 +10,6 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-
-/**
- * True for the instance rendered inside the permanent mobile icon rail.
- * The same children render in the rail and in the mobile sheet; slots use
- * this to swap their collapsed-rail chrome (e.g. the menu toggle above the
- * workspace switcher) for their full-sidebar content.
- */
-export const SidebarMobileRailContext = React.createContext<{
-  isMobileRail: boolean
-}>({ isMobileRail: false })
 import {
   Sheet,
   SheetContent,
@@ -236,11 +226,7 @@ function Sidebar({
             data-slot="sidebar-inner"
             className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
           >
-            <SidebarMobileRailContext.Provider
-              value={{ isMobileRail: visibleOnMobile && forcedCollapsed }}
-            >
-              {children}
-            </SidebarMobileRailContext.Provider>
+            {children}
           </div>
         </div>
       </div>
@@ -266,11 +252,7 @@ function Sidebar({
           <SheetTitle>Sidebar</SheetTitle>
           <SheetDescription>Displays the mobile sidebar.</SheetDescription>
         </SheetHeader>
-        <div className="flex h-full w-full flex-col">
-          <SidebarMobileRailContext.Provider value={{ isMobileRail: false }}>
-            {children}
-          </SidebarMobileRailContext.Provider>
-        </div>
+        <div className="flex h-full w-full flex-col">{children}</div>
       </SheetContent>
     </Sheet>
   )

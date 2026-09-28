@@ -10,9 +10,6 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   ShieldIcon,
-  UsersIcon,
-  UserPlusIcon,
-  UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -77,8 +74,9 @@ export type NavItem = {
  * hiding an entry and blocking its URL can never drift apart.
  *
  * Workspace is the personal tier (everyone): Dashboard, Projects. Manage is
- * org management (owner/org admin) in a deliberate order: Overview, Members,
- * Invitations, Teams, Api Keys, Billing, Settings. Administration is
+ * org management (owner/org admin) in a deliberate order: Overview, Api
+ * Keys, Billing, Settings — Members, Invitations, and Teams live behind the
+ * Overview page's quick links instead of the sidebar. Administration is
  * platform-wide.
  */
 export const NAV_ITEMS: NavItem[] = [
@@ -100,27 +98,6 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Overview",
     href: "/dashboard/manage",
     icon: GaugeIcon,
-    group: "manage",
-    visible: (nav) => isOrgManager(nav.orgRole),
-  },
-  {
-    title: "Members",
-    href: "/dashboard/manage/members",
-    icon: UsersIcon,
-    group: "manage",
-    visible: (nav) => isOrgManager(nav.orgRole),
-  },
-  {
-    title: "Invitations",
-    href: "/dashboard/manage/invitations",
-    icon: UserPlusIcon,
-    group: "manage",
-    visible: (nav) => isOrgManager(nav.orgRole),
-  },
-  {
-    title: "Teams",
-    href: "/dashboard/manage/teams",
-    icon: UsersRoundIcon,
     group: "manage",
     visible: (nav) => isOrgManager(nav.orgRole),
   },

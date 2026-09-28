@@ -102,7 +102,7 @@ export function NavUser() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-56"
-            side={isMobile ? "bottom" : "right"}
+            side="right"
             align="end"
             sideOffset={4}
           >

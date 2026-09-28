@@ -149,7 +149,7 @@ export function TeamSwitcher({
           <DropdownMenuContent
             className="w-56"
             align="start"
-            side={isMobile ? "bottom" : "right"}
+            side="right"
             sideOffset={4}
           >
             <DropdownMenuGroup>

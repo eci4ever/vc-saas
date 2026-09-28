@@ -37,6 +37,36 @@ export type Workspace = {
   name: string
   /** Viewer's role in this workspace; null when unknown or inactive. */
   role: string | null
+  /** Organization logo URL, when the workspace has one. */
+  logo?: string | null
+}
+
+function WorkspaceGlyph({
+  logo,
+  name,
+  className = "size-8",
+}: {
+  logo?: string | null
+  name: string
+  className?: string
+}) {
+  if (logo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logo}
+        alt={`${name} logo`}
+        className={`${className} rounded-lg border border-sidebar-border object-cover`}
+      />
+    )
+  }
+  return (
+    <div
+      className={`${className} flex items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground`}
+    >
+      <GalleryVerticalEndIcon className="size-4" />
+    </div>
+  )
 }
 
 function slugify(value: string) {
@@ -109,9 +139,7 @@ export function TeamSwitcher({
               />
             }
           >
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <GalleryVerticalEndIcon />
-            </div>
+            <WorkspaceGlyph logo={activeTeam.logo} name={activeTeam.name} />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{activeTeam.name}</span>
               <span className="truncate text-xs capitalize">{activeRoleLabel}</span>
@@ -136,9 +164,11 @@ export function TeamSwitcher({
                     onClick={() => onSelect?.(team.id)}
                     className="gap-2 p-2"
                   >
-                    <div className="flex size-6 items-center justify-center rounded-md border">
-                      <GalleryVerticalEndIcon />
-                    </div>
+                    <WorkspaceGlyph
+                      logo={team.logo}
+                      name={team.name}
+                      className="size-6"
+                    />
                     {team.name}
                     <span className="ml-auto text-xs text-muted-foreground">
                       {roles.length > 0

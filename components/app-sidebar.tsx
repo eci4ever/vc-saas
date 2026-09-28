@@ -49,8 +49,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           id: org.id,
           name: org.name,
           role: org.id === activeOrganization?.id ? orgRole : null,
+          logo: (org as { logo?: string | null }).logo ?? null,
         }))
-      : [{ id: "", name: "Personal", role: null }]
+      : [{ id: "", name: "Personal", role: null, logo: null }]
 
   async function handleSelect(id: string) {
     if (!id) return

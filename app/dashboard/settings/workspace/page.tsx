@@ -61,6 +61,7 @@ export default function WorkspaceSettingsPage() {
       data: {
         name: String(form.get("name")),
         slug: String(form.get("slug")),
+        logo: String(form.get("logo")).trim() || null,
       },
     });
     setPending(false);
@@ -145,6 +146,27 @@ export default function WorkspaceSettingsPage() {
                 className={inputClass}
               />
             </label>
+            <div className="flex items-end gap-3">
+              <label className="flex flex-1 flex-col gap-1 text-sm font-medium">
+                Logo URL
+                <input
+                  name="logo"
+                  type="url"
+                  placeholder="https://example.com/logo.png"
+                  defaultValue={activeOrg.logo ?? ""}
+                  key={activeOrg.id + (activeOrg.logo ?? "")}
+                  className={inputClass}
+                />
+              </label>
+              {activeOrg.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={activeOrg.logo}
+                  alt={`${activeOrg.name} logo`}
+                  className="size-11 rounded-xl border border-zinc-200 object-cover dark:border-white/15"
+                />
+              ) : null}
+            </div>
             <button
               type="submit"
               disabled={pending}

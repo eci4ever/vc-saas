@@ -16,6 +16,12 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    },
+  },
   emailAndPassword: {
     enabled: true,
     // Reset tokens live in the verification table (1-hour expiry). Resetting

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { GoogleButton } from "@/components/google-button";
 import { authClient } from "@/lib/auth-client";
 
 function slugify(value: string) {
@@ -74,7 +75,16 @@ export default function SignupPage() {
             Start free. No credit card required.
           </p>
 
-          <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
+          <div className="mt-6">
+            <GoogleButton label="Sign up with Google" />
+            <div className="my-4 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+              or sign up with email
+              <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+            </div>
+          </div>
+
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             {error ? (
               <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
                 {error}

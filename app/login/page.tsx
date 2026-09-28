@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { GoogleButton } from "@/components/google-button";
 import { authClient } from "@/lib/auth-client";
 
 function LoginCard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reset = searchParams.get("reset") === "1";
+  const oauthError = searchParams.get("error");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   // Second step: the server answered with twoFactorRedirect and left a
@@ -89,6 +91,14 @@ function LoginCard() {
             </p>
           ) : null}
 
+          {oauthError && !awaitingTwoFactor ? (
+            <p className="mt-4 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              {oauthError === "account_not_linked"
+                ? "That Google account doesn't match a verified account yet. Sign in with your password first."
+                : "Google sign-in failed. Please try again."}
+            </p>
+          ) : null}
+
           {awaitingTwoFactor ? (
             <form className="mt-6 flex flex-col gap-4" onSubmit={handleTwoFactor}>
               {error ? (
@@ -116,7 +126,16 @@ function LoginCard() {
               </button>
             </form>
           ) : (
-            <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
+            <>
+            <div className="mt-6">
+              <GoogleButton />
+              <div className="my-4 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+                or continue with email
+                <span className="h-px flex-1 bg-zinc-200 dark:bg-white/10" />
+              </div>
+            </div>
+            <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             {error ? (
               <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
                 {error}
@@ -158,6 +177,7 @@ function LoginCard() {
               {pending ? "Signing in…" : "Sign in"}
             </button>
             </form>
+            </>
           )}
 
           <p className="mt-6 text-center text-sm text-zinc-600 dark:text-zinc-400">

@@ -233,35 +233,42 @@ function Sidebar({
     )
   }
 
+  const mobileSheet = (
+    <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <SheetContent
+        dir={dir}
+        data-sidebar="sidebar"
+        data-slot="sidebar"
+        data-mobile="true"
+        className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+        style={
+          {
+            "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+          } as React.CSSProperties
+        }
+        side={side}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>Sidebar</SheetTitle>
+          <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+        </SheetHeader>
+        <div className="flex h-full w-full flex-col">{children}</div>
+      </SheetContent>
+    </Sheet>
+  )
+
   if (isMobile) {
     if (collapsible === "icon") {
-      // Permanent icon rail on mobile — always visible, always collapsed,
-      // instead of hiding the sidebar behind an off-canvas sheet.
-      return renderFixed(true, true)
+      // Permanent icon rail on mobile — always visible, always collapsed —
+      // plus the full sidebar as a sheet, opened from the header toggle.
+      return (
+        <>
+          {renderFixed(true, true)}
+          {mobileSheet}
+        </>
+      )
     }
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetContent
-          dir={dir}
-          data-sidebar="sidebar"
-          data-slot="sidebar"
-          data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
-          side={side}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
-      </Sheet>
-    )
+    return mobileSheet
   }
 
   return renderFixed(false, false)

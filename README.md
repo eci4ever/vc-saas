@@ -45,8 +45,10 @@ Clone it, brand it, charge for it.
 2. **Create the schema**
 
    ```bash
-   npx drizzle-kit push
+   npm run db:push
    ```
+
+   (Loads `.env.local` and syncs every Drizzle schema to the database.)
 
 3. **Run**
 
@@ -93,7 +95,7 @@ vercel --prod --yes
 
 - Set `BETTER_AUTH_URL` to the production domain — it drives OAuth redirects and email links.
 - `CRON_SECRET` protects the expiry-reminder endpoint; Vercel Cron (configured in `vercel.json`, daily 01:00 UTC) sends it automatically as a bearer token.
-- Run `npx drizzle-kit push` once against the production `DATABASE_URL` before the first signup.
+- Run `npm run db:push` once against the production `DATABASE_URL` before the first signup.
 
 ## Branding it
 
@@ -130,4 +132,4 @@ Navigation and guards share one source of truth: `lib/access.ts` defines who see
 | `npm run dev` | Development server on port 3000 |
 | `npm run build` | Production build (also type-checks) |
 | `npm run lint` | ESLint |
-| `npx drizzle-kit push` | Sync schema to the database |
+| `npm run db:push` | Sync all Drizzle schemas to the database (`.env.local`) |

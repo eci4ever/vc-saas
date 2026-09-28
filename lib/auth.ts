@@ -5,6 +5,7 @@ import { and, count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { member, user as userTable } from "@/db/auth-schema";
+import { logAdminAction } from "@/lib/admin";
 import {
   sendOrganizationInvitation,
   sendPasswordResetEmail,
@@ -166,6 +167,25 @@ export const auth = betterAuth({
           // link; an email outage must not fail the invite itself.
           console.error("Failed to send invitation email:", e);
         }
+      },
+      organizationHooks: {
+        // Owner self-deletes from workspace Settings (the admin panel has
+        // its own audit path). Same "org-delete" action; the actor column
+        // tells the two apart.
+        afterDeleteOrganization: async ({ organization, user }) => {
+          try {
+            await logAdminAction({
+              actorUserId: user.id,
+              actorEmail: user.email,
+              action: "org-delete",
+              targetUserId: organization.id,
+              targetEmail: organization.name,
+            });
+          } catch (e) {
+            // The deletion already succeeded; never fail it on audit.
+            console.error("Failed to log workspace deletion:", e);
+          }
+        },
       },
     }),
   ],

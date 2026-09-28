@@ -1,9 +1,13 @@
 import { integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
+import { organization } from "./auth-schema";
+
 /** One subscription per organization (Free = no row). */
 export const subscriptions = pgTable("subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: text("organization_id").notNull().unique(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
   planId: text("plan_id").notNull(),
   cycle: text("cycle").notNull(),
   // active | expired | canceled — expiry itself is derived from period_end
@@ -25,7 +29,9 @@ export const subscriptions = pgTable("subscriptions", {
 /** One Billplz bill per payment attempt; also serves as the invoice list. */
 export const payments = pgTable("payments", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: text("organization_id").notNull(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
   billId: text("bill_id").notNull().unique(),
   planId: text("plan_id").notNull(),

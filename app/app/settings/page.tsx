@@ -207,8 +207,8 @@ export default function WorkspaceSettingsPage() {
           <CardHeader>
             <CardTitle className="text-red-700 dark:text-red-400">Danger zone</CardTitle>
             <CardDescription>
-              Deleting this workspace removes its members, teams, and invitations
-              for everyone. This cannot be undone.
+              Deleting this workspace removes its members, teams, invitations,
+              and billing history for everyone. This cannot be undone.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -228,8 +228,8 @@ export default function WorkspaceSettingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{activeOrg.name}”?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every member, team, and pending invitation in this workspace will
-              be removed. This action cannot be undone.
+              Every member, team, pending invitation, and billing history in
+              this workspace will be removed. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

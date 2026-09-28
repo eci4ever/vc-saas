@@ -25,6 +25,9 @@ export const user = pgTable("user", {
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires"),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  // Set whenever the user switches workspace, so the next sign-in lands in
+  // the workspace they last used.
+  lastActiveOrganizationId: text("last_active_organization_id"),
 });
 
 export const session = pgTable(

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization, twoFactor } from "better-auth/plugins";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { member, user as userTable } from "@/db/auth-schema";
@@ -74,23 +74,73 @@ export const auth = betterAuth({
     },
     session: {
       create: {
-        // Default to the user's first workspace so the app always has
-        // an active organization after sign in.
+        // Land the user in the workspace they last used; fall back to their
+        // first membership (the plugin default experience) for new members
+        // or when that workspace is gone.
         before: async (session) => {
           if (session.activeOrganizationId) return;
-          const [membership] = await db
+          const [user] = await db
+            .select({
+              lastActiveOrg: userTable.lastActiveOrganizationId,
+            })
+            .from(userTable)
+            .where(eq(userTable.id, session.userId))
+            .limit(1);
+          const remembered = user?.lastActiveOrg;
+          if (remembered) {
+            const [membership] = await db
+              .select({ organizationId: member.organizationId })
+              .from(member)
+              .where(
+                and(
+                  eq(member.userId, session.userId),
+                  eq(member.organizationId, remembered)
+                )
+              )
+              .limit(1);
+            if (membership) {
+              return {
+                data: {
+                  ...session,
+                  activeOrganizationId: membership.organizationId,
+                },
+              };
+            }
+          }
+          const [first] = await db
             .select({ organizationId: member.organizationId })
             .from(member)
             .where(eq(member.userId, session.userId))
             .limit(1);
-          if (membership) {
+          if (first) {
             return {
               data: {
                 ...session,
-                activeOrganizationId: membership.organizationId,
+                activeOrganizationId: first.organizationId,
               },
             };
           }
+        },
+      },
+      update: {
+        // setActive writes activeOrganizationId onto the session row; keep
+        // the user's pointer in step so future sign-ins land there too. The
+        // update payload carries no userId — read it from the request's
+        // live session instead.
+        before: async (data, ctx) => {
+          const organizationId = (
+            data as { activeOrganizationId?: unknown }
+          ).activeOrganizationId;
+          if (typeof organizationId !== "string" || !organizationId) return;
+          const session = (
+            ctx as { context?: { session?: { user?: { id?: string } } } }
+          )?.context?.session;
+          const userId = session?.user?.id;
+          if (!userId) return;
+          await db
+            .update(userTable)
+            .set({ lastActiveOrganizationId: organizationId })
+            .where(eq(userTable.id, userId));
         },
       },
     },

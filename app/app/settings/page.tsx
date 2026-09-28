@@ -111,11 +111,17 @@ export default function WorkspaceSettingsPage() {
     <>
       <PageHeader title="Settings" />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Workspace name, slug, logo, and teams for {activeOrg.name}.
+          </p>
+        </div>
       <Card>
         <CardHeader>
           <CardTitle>Workspace</CardTitle>
           <CardDescription>
-            Settings for {activeOrg.name}. Slug must be unique.
+            The slug must stay unique. Renaming does not break existing links.
           </CardDescription>
         </CardHeader>
         <CardContent>

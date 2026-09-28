@@ -8,14 +8,16 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
  */
 export function PageHeader({ title }: { title: string }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    // h-12 on mobile keeps the row flush with the rail's 48px glyph cell;
+    // desktop grows to h-16 (h-12 when the sidebar is collapsed).
+    <header className="flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear md:h-16 md:group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="flex items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
+        <SidebarTrigger className="-ml-1 max-md:size-9" />
         <Separator
           orientation="vertical"
-          className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+          className="mr-2 data-vertical:h-5 data-vertical:self-auto md:data-vertical:h-4"
         />
-        <span className="text-sm font-medium text-muted-foreground">
+        <span className="text-base font-medium text-muted-foreground md:text-sm">
           {title}
         </span>
       </div>

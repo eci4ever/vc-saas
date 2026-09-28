@@ -12,6 +12,9 @@ export const subscriptions = pgTable("subscriptions", {
   periodStart: timestamp("period_start").notNull(),
   periodEnd: timestamp("period_end").notNull(),
   canceledAt: timestamp("canceled_at"),
+  // Set when the expiry reminder email for the current period was sent, so
+  // the daily cron reminds at most once per period.
+  reminderSentAt: timestamp("reminder_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

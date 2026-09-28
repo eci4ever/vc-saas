@@ -10,7 +10,9 @@ export function PageHeader({ title }: { title: string }) {
   return (
     // h-12 on mobile keeps the row flush with the rail's 48px glyph cell;
     // desktop grows to h-16 (h-12 when the sidebar is collapsed).
-    <header className="flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear md:h-16 md:group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    // Hidden on mobile: the icon rail carries the menu toggle, so no title
+    // bar is needed there.
+    <header className="flex h-12 shrink-0 items-center gap-2 transition-[width,height] ease-linear max-md:hidden md:h-16 md:group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="flex items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1 max-md:size-9" />
         <Separator

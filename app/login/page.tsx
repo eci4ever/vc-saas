@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { authClient } from "@/lib/auth-client";
 
-export default function LoginPage() {
+function LoginCard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reset = searchParams.get("reset") === "1";
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   // Second step: the server answered with twoFactorRedirect and left a
@@ -81,6 +83,12 @@ export default function LoginPage() {
               : "Sign in to your account."}
           </p>
 
+          {reset && !awaitingTwoFactor ? (
+            <p className="mt-4 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+              Password updated. Sign in with your new password.
+            </p>
+          ) : null}
+
           {awaitingTwoFactor ? (
             <form className="mt-6 flex flex-col gap-4" onSubmit={handleTwoFactor}>
               {error ? (
@@ -134,6 +142,14 @@ export default function LoginPage() {
                 className="h-11 rounded-xl border border-zinc-200 bg-transparent px-3 font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white"
               />
             </label>
+            <div className="flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-zinc-600 underline dark:text-zinc-400"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <button
               type="submit"
               disabled={pending}
@@ -153,5 +169,13 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginCard />
+    </Suspense>
   );
 }

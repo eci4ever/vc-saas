@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { member, user as userTable } from "@/db/auth-schema";
 import {
   sendOrganizationInvitation,
+  sendPasswordResetEmail,
   sendVerificationEmail,
 } from "@/lib/email";
 import { BRAND_NAME } from "@/lib/brand";
@@ -17,6 +18,19 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    // Reset tokens live in the verification table (1-hour expiry). Resetting
+    // on a Google-only account creates the credential account, which is how
+    // social-only users add a password from the Account page.
+    sendResetPassword: async ({ user, url }) => {
+      try {
+        await sendPasswordResetEmail({ to: user.email, url });
+      } catch (e) {
+        // The token is already valid; an email outage must not fail the
+        // request (its generic response must not leak whether it succeeded).
+        console.error("Failed to send password reset email:", e);
+      }
+    },
+    revokeSessionsOnPasswordReset: true,
   },
   emailVerification: {
     sendOnSignUp: true,

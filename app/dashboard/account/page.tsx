@@ -79,6 +79,9 @@ export default function AccountPage() {
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwPending, setPwPending] = useState(false);
+  // A Google-only user has no credential account, so changePassword can't
+  // work; they add a password via the forgot-password flow instead.
+  const [hasCredential, setHasCredential] = useState<boolean | null>(null);
 
   // sessions
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
@@ -116,6 +119,17 @@ export default function AccountPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSessions();
   }, [loadSessions]);
+
+  const loadAccounts = useCallback(async () => {
+    const { data } = await authClient.listAccounts();
+    const rows = (data ?? []) as { provider?: string }[];
+    setHasCredential(rows.some((row) => row.provider === "credential"));
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAccounts();
+  }, [loadAccounts]);
 
   async function handleProfile(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -203,6 +217,26 @@ export default function AccountPage() {
     }
     formEl.reset();
     setPwMsg("Password changed.");
+  }
+
+  async function handleSetPassword() {
+    setPwError(null);
+    setPwMsg(null);
+    if (!user?.email) return;
+    setPwPending(true);
+    // The reset flow works for accounts without a password: better-auth's
+    // reset endpoint creates the credential account, then /reset-password
+    // confirms it with the new password.
+    const { error } = await authClient.requestPasswordReset({
+      email: user.email,
+      redirectTo: "/reset-password",
+    });
+    setPwPending(false);
+    if (error) {
+      setPwError(error.message ?? "Failed to send the setup email.");
+      return;
+    }
+    setPwMsg("Check your email for a link to set your password.");
   }
 
   async function revokeSession(row: SessionRow) {
@@ -448,9 +482,35 @@ export default function AccountPage() {
           <Card>
             <CardHeader>
               <CardTitle>Password</CardTitle>
-              <CardDescription>Change your sign-in password.</CardDescription>
+              <CardDescription>
+                {hasCredential === false
+                  ? "You sign in with Google. Add a password to also sign in with your email."
+                  : "Change your sign-in password."}
+              </CardDescription>
             </CardHeader>
             <CardContent>
+              {hasCredential === false ? (
+                <div className="flex flex-col gap-4">
+                  {pwError ? (
+                    <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+                      {pwError}
+                    </p>
+                  ) : null}
+                  {pwMsg ? (
+                    <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+                      {pwMsg}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleSetPassword}
+                    disabled={pwPending}
+                    className="flex h-11 w-fit items-center justify-center rounded-full border border-zinc-200 px-5 text-sm font-medium transition-colors hover:bg-zinc-100 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/10"
+                  >
+                    {pwPending ? "Requesting…" : "Set a password"}
+                  </button>
+                </div>
+              ) : (
               <form className="flex flex-col gap-4" onSubmit={handlePassword}>
                 {pwError ? (
                   <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
@@ -499,6 +559,7 @@ export default function AccountPage() {
                   {pwPending ? "Changing…" : "Change password"}
                 </button>
               </form>
+              )}
             </CardContent>
           </Card>
 

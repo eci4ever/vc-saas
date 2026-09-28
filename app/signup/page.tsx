@@ -8,16 +8,6 @@ import { BrandMark } from "@/components/brand-mark";
 import { GoogleButton } from "@/components/google-button";
 import { authClient } from "@/lib/auth-client";
 
-function slugify(value: string) {
-  const base =
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 24) || "workspace";
-  return `${base}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 export default function SignupPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -42,20 +32,9 @@ export default function SignupPage() {
       setError(error.message ?? "Sign up failed. Try a different email.");
       return;
     }
-    // Provision a personal workspace (a default team is auto-created server-side
-    // by the organization plugin) so the sidebar has real data.
-    try {
-      const orgName = `${name}'s Workspace`;
-      const { data: org } = await authClient.organization.create({
-        name: orgName,
-        slug: slugify(email.split("@")[0] ?? "workspace"),
-      });
-      if (org) {
-        await authClient.organization.setActive({ organizationId: org.id });
-      }
-    } catch {
-      // Non-fatal: user is created, workspace can be added later.
-    }
+    // No workspace creation here: the app layout's ensure step creates the
+    // flagged "Default Workspace" on the first /app visit — the same server
+    // path Google sign-ins use.
     setPending(false);
     router.push("/app");
   }

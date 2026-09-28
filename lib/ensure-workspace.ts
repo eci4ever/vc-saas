@@ -1,18 +1,29 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { count, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { member } from "@/db/auth-schema";
+import { member, organization } from "@/db/auth-schema";
 import { auth } from "@/lib/auth";
+import {
+  DEFAULT_WORKSPACE_NAME,
+  isDefaultMetadata,
+} from "@/lib/workspace";
 
 /**
- * Google sign-ins never run the signup form's client-side workspace
- * creation, so a Google-first (or pre-existing org-less) account would land
- * with no workspace and no owner role. Called from the app layout: the
- * first visit heals the account by creating their personal workspace via
- * the organization plugin (owner membership + default team + active org),
- * then reloads once so the tree renders with the new workspace.
+ * Two healing jobs, run from the app layout on every navigation:
+ *
+ * 1. Zero memberships (fresh signup — the signup form no longer creates a
+ *    workspace, and Google sign-ins never did) → create their "Default
+ *    Workspace" (flagged via metadata, owner membership, default team) and
+ *    activate it.
+ * 2. Memberships exist but the session's active organization is missing or
+ *    stale (they deleted their active workspace) → activate their default
+ *    workspace instead of showing an org-less shell.
+ *
+ * No redirect afterwards: redirect() inside a layout loops the client
+ * router when the navigation came from client-side code (the signup form).
+ * Everything downstream re-reads the session — server components in the
+ * same render and the sidebar's client hooks both see the corrected state.
  */
 export async function ensurePersonalWorkspace(): Promise<void> {
   const reqHeaders = await headers();
@@ -20,38 +31,59 @@ export async function ensurePersonalWorkspace(): Promise<void> {
     .getSession({ headers: reqHeaders })
     .catch(() => null);
   if (!session?.user) return;
+  const userId = session.user.id;
 
-  const [row] = await db
-    .select({ value: count() })
+  const memberships = await db
+    .select({ organizationId: member.organizationId })
     .from(member)
-    .where(eq(member.userId, session.user.id));
-  if (Number(row?.value ?? 0) > 0) return;
+    .where(eq(member.userId, userId));
 
-  const displayName =
-    session.user.name?.trim() ||
-    session.user.email.split("@")[0] ||
-    "My";
-  const slugBase = (
-    session.user.email.split("@")[0] ?? "workspace"
-  )
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 24);
-  const slug = `${slugBase || "workspace"}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  const activeId = session.session.activeOrganizationId ?? null;
+  const activeStillExists =
+    activeId !== null &&
+    memberships.some((m) => m.organizationId === activeId);
 
-  const created = await auth.api
-    .createOrganization({
-      body: { name: `${displayName}'s Workspace`, slug },
-      headers: reqHeaders,
-    })
-    .catch((e) => {
-      console.error("ensurePersonalWorkspace failed:", e);
-      return null;
-    });
-  // The plugin set the new org active on the session; one reload lets the
-  // whole tree (sidebar, guards, children) render with it.
-  if (created) redirect("/app");
+  if (memberships.length === 0) {
+    const created = await auth.api
+      .createOrganization({
+        body: {
+          name: DEFAULT_WORKSPACE_NAME,
+          // Globally unique; anchored to the user so reruns after a deleted
+          // default never collide with another user's slug.
+          slug: `default-${userId.slice(0, 8).toLowerCase()}-${Math.random()
+            .toString(36)
+            .slice(2, 6)}`,
+          metadata: { isDefault: true },
+        },
+        headers: reqHeaders,
+      })
+      .catch((e) => {
+        console.error("Failed to create default workspace:", e);
+        return null;
+      });
+    if (created) return;
+  }
+
+  if (!activeStillExists) {
+    // Prefer their flagged default workspace; fall back to the first
+    // membership (accounts that predate the flag).
+    const orgs = await db
+      .select({ id: organization.id, metadata: organization.metadata })
+      .from(organization)
+      .innerJoin(member, eq(member.organizationId, organization.id))
+      .where(eq(member.userId, userId));
+    const fallback =
+      orgs.find((o) => isDefaultMetadata(o.metadata)) ?? orgs[0] ?? null;
+    if (fallback && fallback.id !== activeId) {
+      await auth.api
+        .setActiveOrganization({
+          body: { organizationId: fallback.id },
+          headers: reqHeaders,
+        })
+        .catch((e) => {
+          console.error("Failed to reactivate default workspace:", e);
+        });
+    }
+  }
 }
+

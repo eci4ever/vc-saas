@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, organization, twoFactor } from "better-auth/plugins";
 import { and, count, eq } from "drizzle-orm";
@@ -6,6 +6,7 @@ import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { member, user as userTable } from "@/db/auth-schema";
 import { logAdminAction } from "@/lib/admin";
+import { isDefaultMetadata } from "@/lib/workspace";
 import {
   sendOrganizationInvitation,
   sendPasswordResetEmail,
@@ -169,6 +170,16 @@ export const auth = betterAuth({
         }
       },
       organizationHooks: {
+        // Owners cannot delete their Default Workspace (user-created
+        // workspaces delete freely). The platform admin panel deletes via
+        // direct DB and intentionally bypasses this guard.
+        beforeDeleteOrganization: async ({ organization }) => {
+          if (isDefaultMetadata(organization.metadata)) {
+            throw new APIError("BAD_REQUEST", {
+              message: "The Default Workspace cannot be deleted.",
+            });
+          }
+        },
         // Owner self-deletes from workspace Settings (the admin panel has
         // its own audit path). Same "org-delete" action; the actor column
         // tells the two apart.

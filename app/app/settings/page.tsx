@@ -23,6 +23,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { isOrgOwner } from "@/lib/access";
 import { authClient } from "@/lib/auth-client";
+import { isDefaultMetadata } from "@/lib/workspace";
 
 const inputClass =
   "h-11 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white";
@@ -203,24 +204,40 @@ export default function WorkspaceSettingsPage() {
       </Card>
 
       {owner ? (
-        <Card className="border-red-500/30 dark:border-red-500/30">
-          <CardHeader>
-            <CardTitle className="text-red-700 dark:text-red-400">Danger zone</CardTitle>
-            <CardDescription>
-              Deleting this workspace removes its members, teams, invitations,
-              and billing history for everyone. This cannot be undone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-              className="flex h-11 items-center rounded-full border border-red-500/40 px-5 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
-            >
-              Delete workspace
-            </button>
-          </CardContent>
-        </Card>
+        isDefaultMetadata(
+          (activeOrg as { metadata?: string | null }).metadata
+        ) ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Default workspace</CardTitle>
+              <CardDescription>
+                This is your Default Workspace — it stays with your account and
+                cannot be deleted. Workspaces you create from the switcher can
+                be deleted from their own settings page.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : (
+          <Card className="border-red-500/30 dark:border-red-500/30">
+            <CardHeader>
+              <CardTitle className="text-red-700 dark:text-red-400">Danger zone</CardTitle>
+              <CardDescription>
+                Deleting this workspace removes its members, teams, invitations,
+                and billing history for everyone. This cannot be undone. Your
+                Default Workspace stays and becomes active again.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="flex h-11 items-center rounded-full border border-red-500/40 px-5 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
+              >
+                Delete workspace
+              </button>
+            </CardContent>
+          </Card>
+        )
       ) : null}
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

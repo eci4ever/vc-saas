@@ -91,7 +91,9 @@ export type AdminAction =
   | "revoke-sessions"
   | "impersonate"
   | "org-rename"
-  | "org-delete";
+  | "org-delete"
+  | "billing-assign"
+  | "billing-cancel";
 
 export async function logAdminAction(entry: {
   actorUserId: string;
@@ -145,6 +147,10 @@ export function describeAdminAction(entry: AuditEntry): string {
       return "renamed organization";
     case "org-delete":
       return "deleted organization";
+    case "billing-assign":
+      return "assigned subscription to";
+    case "billing-cancel":
+      return "canceled subscription of";
     default:
       return entry.action;
   }

@@ -15,26 +15,18 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { requireAdmin } from "@/lib/admin";
+import {
+  amountInSen,
+  BILLING_CYCLES,
+  CYCLE_LABELS,
+  formatRm,
+  PLANS,
+} from "@/lib/plans";
 
-const MOCK_PLANS = [
-  {
-    name: "Free",
-    price: "$0",
-    limits: "3 projects · 5 members · community support",
-  },
-  {
-    name: "Pro",
-    price: "$29",
-    limits: "Unlimited projects · 25 members · priority support",
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    limits: "SSO · audit log · dedicated support",
-  },
-];
+export default async function AdminPlansPage() {
+  await requireAdmin();
 
-export default function AdminPlansPage() {
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -61,29 +53,35 @@ export default function AdminPlansPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Plans</h1>
           <p className="text-sm text-muted-foreground">
-            Mock UI — connect a billing provider later.
+            The catalog is defined in code (lib/plans.ts) — changes ship with a
+            deploy.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          {MOCK_PLANS.map((plan) => (
-            <Card key={plan.name}>
+          {PLANS.map((plan) => (
+            <Card key={plan.id}>
               <CardHeader>
                 <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>
-                  {plan.price}
-                  {plan.price.startsWith("$") ? " / month" : ""}
-                </CardDescription>
+                <CardDescription>{plan.description}</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <p className="text-sm text-muted-foreground">{plan.limits}</p>
-                <button
-                  type="button"
-                  disabled
-                  title="Mock only"
-                  className="flex h-9 items-center justify-center rounded-full border border-zinc-200 px-4 text-sm font-medium opacity-60 dark:border-white/15"
-                >
-                  Edit plan
-                </button>
+              <CardContent className="flex flex-col gap-2 text-sm">
+                <p className="text-2xl font-semibold">
+                  {formatRm(plan.monthlySen)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {plan.monthlySen === 0 ? " forever" : " / month"}
+                  </span>
+                </p>
+                {BILLING_CYCLES.map((cycle) => (
+                  <div
+                    key={cycle}
+                    className="flex justify-between text-muted-foreground"
+                  >
+                    <span>{CYCLE_LABELS[cycle]}</span>
+                    <span className="font-medium text-foreground">
+                      {formatRm(amountInSen(plan.id, cycle))}
+                    </span>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           ))}

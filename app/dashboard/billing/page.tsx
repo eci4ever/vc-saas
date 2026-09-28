@@ -6,6 +6,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -15,18 +16,33 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getAccessContext } from "@/lib/guards";
-import { isOrgOwner } from "@/lib/access";
+import { isOrgManager, isOrgOwner } from "@/lib/access";
+import { redirect } from "next/navigation";
 import { getSubscription, listPayments } from "@/lib/billing";
 import { formatRm, planName } from "@/lib/plans";
 
-import { BillingActions } from "./billing-actions";
+import { PlanPicker } from "./billing-actions";
 
-const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  expired: "Expired",
-  canceled: "Canceled",
-};
+function statusBadge(status: string) {
+  if (status === "active")
+    return <Badge>Active</Badge>;
+  if (status === "expired")
+    return <Badge variant="outline">Expired</Badge>;
+  if (status === "canceled")
+    return <Badge variant="outline">Canceled</Badge>;
+  return <Badge variant="secondary">Free</Badge>;
+}
+
+const DATE_FMT = { day: "numeric", month: "short", year: "numeric" } as const;
 
 export default async function BillingPage({
   searchParams,
@@ -36,6 +52,9 @@ export default async function BillingPage({
   const { billplz, billplz_id: billplzId } = await searchParams;
   const ctx = await getAccessContext();
   if (!ctx) return null;
+  // Billing is a management page now: the sidebar hides it from plain
+  // members and this guard keeps the URL from drifting out of sync.
+  if (!isOrgManager(ctx.orgRole)) redirect("/dashboard");
   const organizationId = ctx.activeOrganizationId;
   const owner = isOrgOwner(ctx.orgRole);
 
@@ -45,8 +64,7 @@ export default async function BillingPage({
   const invoices = organizationId ? await listPayments(organizationId) : [];
 
   const effectivePlan = subscription?.planId ?? "free";
-  const effectiveStatus =
-    subscription?.status ?? "active";
+  const effectiveStatus = subscription?.status ?? "active";
 
   return (
     <>
@@ -70,7 +88,7 @@ export default async function BillingPage({
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col gap-6 p-4 pt-0">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="text-sm text-muted-foreground">
@@ -89,32 +107,46 @@ export default async function BillingPage({
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-3">
                   Current plan
-                  <span className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  <span className="text-xl font-semibold">
                     {planName(effectivePlan)}
                   </span>
-                  {subscription ? (
-                    <span className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                      {STATUS_LABELS[effectiveStatus]}
-                    </span>
-                  ) : null}
+                  {statusBadge(effectiveStatus)}
                 </CardTitle>
                 <CardDescription>
                   {subscription
-                    ? `${subscription.cycle} billing · period ${subscription.periodStart.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })} – ${subscription.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}`
+                    ? `${subscription.cycle} billing · period ${subscription.periodStart.toLocaleDateString("en-MY", DATE_FMT)} – ${subscription.periodEnd.toLocaleDateString("en-MY", DATE_FMT)}`
                     : "You are on the Free plan — no subscription yet."}
                 </CardDescription>
               </CardHeader>
             </Card>
 
-            <BillingActions
-              isOwner={owner}
-              hasSubscription={!!subscription}
-              returningFromBillplz={
-                billplz === "return" && !!billplzId ? billplzId : null
-              }
-            />
+            {owner ? (
+              <PlanPicker
+                hasSubscription={!!subscription}
+                activePlan={subscription?.status === "active"}
+                // Only an ACTIVE subscription counts as "Current" in the
+                // picker; canceled/expired keeps the header badge but makes
+                // every plan switchable again.
+                currentPlanId={
+                  subscription?.status === "active" ? effectivePlan : null
+                }
+                currentCycle={
+                  subscription?.status === "active"
+                    ? subscription.cycle
+                    : null
+                }
+                returningFromBillplz={
+                  billplz === "return" && !!billplzId ? billplzId : null
+                }
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Only the workspace owner can change the plan. Ask them to
+                subscribe or renew from this page.
+              </p>
+            )}
 
             <Card>
               <CardHeader>
@@ -123,48 +155,56 @@ export default async function BillingPage({
                   Every Billplz bill raised for this workspace.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3">
+              <CardContent>
                 {invoices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No invoices yet.
                   </p>
                 ) : (
-                  invoices.map((invoice) => (
-                    <div
-                      key={invoice.id}
-                      className="flex flex-col gap-1 rounded-lg border px-3 py-2 text-sm sm:flex-row sm:items-center"
-                    >
-                      <span className="flex-1 font-medium">
-                        {planName(invoice.planId)} · {invoice.cycle}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {invoice.createdAt.toLocaleDateString("en-MY", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                      <span className="font-medium">
-                        {formatRm(invoice.amount)}
-                      </span>
-                      {invoice.status === "paid" ? (
-                        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">
-                          Paid
-                        </span>
-                      ) : invoice.status === "due" ? (
-                        <a
-                          href={invoice.billUrl}
-                          className="rounded-full bg-zinc-500/10 px-2 py-0.5 text-xs font-medium text-zinc-700 underline dark:text-zinc-300"
-                        >
-                          Pay now
-                        </a>
-                      ) : (
-                        <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400">
-                          Failed
-                        </span>
-                      )}
-                    </div>
-                  ))
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Plan</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {invoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                          <TableCell>
+                            {invoice.createdAt.toLocaleDateString(
+                              "en-MY",
+                              DATE_FMT
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {planName(invoice.planId)}
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {invoice.cycle}
+                            </span>
+                          </TableCell>
+                          <TableCell>{formatRm(invoice.amount)}</TableCell>
+                          <TableCell className="text-right">
+                            {invoice.status === "paid" ? (
+                              <Badge variant="secondary">Paid</Badge>
+                            ) : invoice.status === "due" ? (
+                              <a
+                                href={invoice.billUrl}
+                                className="text-sm font-medium underline underline-offset-4"
+                              >
+                                Pay now
+                              </a>
+                            ) : (
+                              <Badge variant="destructive">Failed</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>

@@ -2,7 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -10,31 +23,65 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { authClient } from "@/lib/auth-client";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import {
   amountInSen,
-  CYCLE_LABELS,
+  BILLING_CYCLES,
   formatRm,
   PLANS,
   type BillingCycle,
   type PlanId,
 } from "@/lib/plans";
 
-const CYCLES: BillingCycle[] = ["monthly", "quarterly", "yearly"];
+// Plain fetch, NOT authClient.$fetch — the latter prefixes /api/auth and
+// would miss these app routes entirely.
+async function postBilling<T>(
+  path: "/subscribe" | "/cancel" | "/verify",
+  body?: Record<string, unknown>
+): Promise<{ data: T | null; error: string | null }> {
+  const res = await fetch(`/api/billing${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    // Non-JSON error body.
+  }
+  if (!res.ok) {
+    const message =
+      (payload as { error?: string } | null)?.error ?? "Action failed.";
+    return { data: null, error: message };
+  }
+  return { data: (payload ?? null) as T | null, error: null };
+}
 
-export function BillingActions({
-  isOwner,
+const PERIOD_SUFFIX: Record<BillingCycle, string> = {
+  monthly: "/month",
+  quarterly: "/quarter",
+  yearly: "/year",
+};
+
+export function PlanPicker({
   hasSubscription,
+  activePlan,
+  currentPlanId,
+  currentCycle,
   returningFromBillplz,
 }: {
-  isOwner: boolean;
   hasSubscription: boolean;
+  activePlan: boolean;
+  currentPlanId: string | null;
+  currentCycle: string | null;
   returningFromBillplz: string | null;
 }) {
   const router = useRouter();
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const verifiedRef = useRef<string | null>(null);
 
   // Return from Billplz: the query params are untrusted, so ask the server
@@ -45,137 +92,177 @@ export function BillingActions({
     verifiedRef.current = returningFromBillplz;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await authClient.$fetch("/billing/verify", {
-          method: "POST",
-          body: { billId: returningFromBillplz },
-        });
-        if (cancelled) return;
-        if (res.error) {
-          setError("Could not verify the payment yet. Refresh in a moment.");
-          return;
-        }
-        setNotice("Payment confirmed. Your plan is active.");
-        router.refresh();
-      } catch {
-        if (!cancelled) {
-          setError("Could not verify the payment yet. Refresh in a moment.");
-        }
+      const { error: verifyError } = await postBilling("/verify", {
+        billId: returningFromBillplz,
+      });
+      if (cancelled) return;
+      if (verifyError) {
+        toast.error("Could not verify the payment yet. Refresh in a moment.");
+        return;
       }
+      toast.success("Payment confirmed — your plan is active.");
+      router.refresh();
     })();
     return () => {
       cancelled = true;
     };
   }, [returningFromBillplz, router]);
 
-  async function subscribe(planId: PlanId, cycle: BillingCycle) {
-    setError(null);
-    setNotice(null);
-    setPendingPlan(`${planId}:${cycle}`);
-    try {
-      const res = await authClient.$fetch<{ url?: string }>("/billing/subscribe", {
-        method: "POST",
-        body: { planId, cycle },
-      });
-      if (res.error || !res.data?.url) {
-        setError(res.error?.message ?? "Could not start the payment.");
-        setPendingPlan(null);
-        return;
-      }
-      window.location.assign(res.data.url);
-    } catch {
-      setError("Could not start the payment.");
+  async function subscribe(planId: PlanId, selected: BillingCycle) {
+    setPendingPlan(`${planId}:${selected}`);
+    const { data, error: subscribeError } = await postBilling<{ url: string }>(
+      "/subscribe",
+      { planId, cycle: selected }
+    );
+    if (subscribeError || !data?.url) {
       setPendingPlan(null);
+      toast.error(subscribeError ?? "Could not start the payment.");
+      return;
     }
+    window.location.assign(data.url);
   }
 
   async function cancel() {
-    setError(null);
-    setNotice(null);
     setPendingPlan("cancel");
-    const res = await authClient.$fetch("/billing/cancel", {
-      method: "POST",
-    });
+    const { error: cancelError } = await postBilling("/cancel");
     setPendingPlan(null);
-    if (res.error) {
-      setError(res.error.message ?? "Could not cancel.");
+    if (cancelError) {
+      toast.error(cancelError);
       return;
     }
+    setCancelOpen(false);
+    toast.success("Subscription canceled — back to Free.");
     router.refresh();
   }
 
-  if (!isOwner) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Only the workspace owner can change the plan. Ask them to subscribe or
-        renew from this page.
-      </p>
-    );
-  }
+  const isCurrent = (planId: string) =>
+    hasSubscription &&
+    currentPlanId === planId &&
+    (currentPlanId === "free" || currentCycle === cycle);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{hasSubscription ? "Change or renew" : "Upgrade"}</CardTitle>
-        <CardDescription>
-          Paying a plan starts a new period immediately, paid via Billplz FPX.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {error ? (
-          <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
-            {error}
-          </p>
-        ) : null}
-        {notice ? (
-          <p className="rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
-            {notice}
-          </p>
-        ) : null}
-        {PLANS.filter((plan) => plan.monthlySen > 0).map((plan) => (
-          <div
-            key={plan.id}
-            className="flex flex-col gap-3 rounded-xl border p-4"
-          >
-            <div>
-              <p className="font-medium">{plan.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {plan.description}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {CYCLES.map((cycle) => (
-                <button
-                  key={cycle}
-                  type="button"
-                  disabled={pendingPlan !== null}
-                  onClick={() => subscribe(plan.id as PlanId, cycle)}
-                  className="flex h-9 flex-1 min-w-36 items-center justify-between rounded-full border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-100 disabled:opacity-60 dark:border-white/15 dark:hover:bg-white/10"
-                >
-                  <span>{CYCLE_LABELS[cycle]}</span>
-                  <span className="text-muted-foreground">
+    <div className="flex flex-col gap-4">
+      <Tabs
+        value={cycle}
+        onValueChange={(value) => setCycle(value as BillingCycle)}
+        className="w-fit"
+      >
+        <TabsList>
+          {BILLING_CYCLES.map((option) => (
+            <TabsTrigger key={option} value={option}>
+              {option === "monthly"
+                ? "Monthly"
+                : option === "quarterly"
+                  ? "Quarterly −10%"
+                  : "Yearly −20%"}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {PLANS.map((plan) => {
+          const current = isCurrent(plan.id);
+          const price = formatRm(amountInSen(plan.id as PlanId, cycle));
+          return (
+            <Card
+              key={plan.id}
+              className={cn(
+                current &&
+                  "border-zinc-950 dark:border-white"
+              )}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  {plan.name}
+                  {current ? <Badge>Current</Badge> : null}
+                </CardTitle>
+                <CardDescription>{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col gap-4">
+                <p className="text-3xl font-semibold tracking-tight">
+                  {price}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {plan.monthlySen === 0
+                      ? " forever"
+                      : PERIOD_SUFFIX[cycle]}
+                  </span>
+                </p>
+                {plan.monthlySen === 0 ? (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={activePlan}
+                  >
+                    {activePlan
+                      ? "Cancel your plan to return to Free"
+                      : "Default plan"}
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    disabled={
+                      (currentPlanId !== null && current) ||
+                      pendingPlan !== null
+                    }
+                    onClick={() => subscribe(plan.id as PlanId, cycle)}
+                  >
                     {pendingPlan === `${plan.id}:${cycle}`
                       ? "Redirecting…"
-                      : formatRm(amountInSen(plan.id as PlanId, cycle))}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        {hasSubscription ? (
+                      : currentPlanId !== null && current
+                        ? "Current plan"
+                        : hasSubscription
+                          ? `Switch to ${plan.name}`
+                          : `Choose ${plan.name}`}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {activePlan ? (
+        <>
           <button
             type="button"
             disabled={pendingPlan !== null}
-            onClick={cancel}
+            onClick={() => setCancelOpen(true)}
             className="h-9 w-fit rounded-lg border border-red-500/30 px-3 text-sm text-red-700 transition-colors hover:bg-red-500/10 disabled:opacity-60 dark:text-red-400"
           >
-            {pendingPlan === "cancel"
-              ? "Cancelling…"
-              : "Cancel subscription (back to Free)"}
+            Cancel subscription (back to Free)
           </button>
-        ) : null}
-      </CardContent>
-    </Card>
+          <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  The workspace returns to Free immediately. Any paid period
+                  still showing is kept as history. You can subscribe again at
+                  any time.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={pendingPlan !== null}>
+                  Keep plan
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={pendingPlan !== null}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    cancel();
+                  }}
+                  className="text-red-600 dark:text-red-400"
+                >
+                  {pendingPlan === "cancel"
+                    ? "Cancelling…"
+                    : "Cancel subscription"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : null}
+    </div>
   );
 }

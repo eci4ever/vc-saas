@@ -2,6 +2,7 @@ import {
   Building2Icon,
   CreditCardIcon,
   FolderKanbanIcon,
+  GaugeIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
   PackageIcon,
@@ -74,6 +75,11 @@ export type NavItem = {
  * Single source of truth for dashboard navigation. The sidebar renders this
  * matrix and the route guards enforce the same predicates server-side, so
  * hiding an entry and blocking its URL can never drift apart.
+ *
+ * Workspace is the personal tier (everyone): Dashboard, Projects. Manage is
+ * org management (owner/org admin) in a deliberate order: Overview, Members,
+ * Invitations, Teams, Api Keys, Billing, Settings. Administration is
+ * platform-wide.
  */
 export const NAV_ITEMS: NavItem[] = [
   {
@@ -91,24 +97,9 @@ export const NAV_ITEMS: NavItem[] = [
     visible: () => true,
   },
   {
-    title: "Billing",
-    href: "/dashboard/billing",
-    icon: CreditCardIcon,
-    group: "workspace",
-    visible: () => true,
-  },
-  {
-    title: "API Keys",
-    href: "/dashboard/api-keys",
-    icon: KeyRoundIcon,
-    group: "workspace",
-    visible: () => true,
-  },
-  {
-    title: "Settings",
-    href: "/dashboard/settings",
-    icon: SettingsIcon,
-    // Settings is workspace-only now that profile lives on the Account page.
+    title: "Overview",
+    href: "/dashboard/manage",
+    icon: GaugeIcon,
     group: "manage",
     visible: (nav) => isOrgManager(nav.orgRole),
   },
@@ -130,6 +121,28 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Teams",
     href: "/dashboard/manage/teams",
     icon: UsersRoundIcon,
+    group: "manage",
+    visible: (nav) => isOrgManager(nav.orgRole),
+  },
+  {
+    title: "Api Keys",
+    href: "/dashboard/api-keys",
+    icon: KeyRoundIcon,
+    group: "manage",
+    visible: () => true,
+  },
+  {
+    title: "Billing",
+    href: "/dashboard/billing",
+    icon: CreditCardIcon,
+    group: "manage",
+    visible: () => true,
+  },
+  {
+    title: "Settings",
+    href: "/dashboard/settings",
+    icon: SettingsIcon,
+    // Settings is workspace-only now that profile lives on the Account page.
     group: "manage",
     visible: (nav) => isOrgManager(nav.orgRole),
   },

@@ -81,7 +81,7 @@ export default function AcceptInvitationPage() {
       );
       return;
     }
-    router.push("/dashboard");
+    router.push("/app");
   }
 
   return (

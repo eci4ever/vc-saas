@@ -72,7 +72,7 @@ export async function GET(req: Request) {
         orgName: org.name,
         planLabel: `${planName(sub.planId)} (${sub.cycle})`,
         periodEnd: sub.periodEnd,
-        renewUrl: `${appUrl}/dashboard/billing`,
+        renewUrl: `${appUrl}/app/billing`,
       });
       sent += 1;
     } catch (e) {

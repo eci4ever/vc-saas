@@ -35,7 +35,7 @@ export default function SignupPage() {
       name,
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: "/app",
     });
     if (error) {
       setPending(false);
@@ -57,7 +57,7 @@ export default function SignupPage() {
       // Non-fatal: user is created, workspace can be added later.
     }
     setPending(false);
-    router.push("/dashboard");
+    router.push("/app");
   }
 
   return (

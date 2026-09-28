@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       callbackUrl: `${appUrl()}/api/billing/webhook`,
       // Billplz appends billplz_id + billplz_paid; the page re-verifies the
       // bill server-side instead of trusting the query params.
-      redirectUrl: `${appUrl()}/dashboard/billing?billplz=return`,
+      redirectUrl: `${appUrl()}/app/billing?billplz=return`,
     });
     await db.insert(payments).values({
       organizationId,

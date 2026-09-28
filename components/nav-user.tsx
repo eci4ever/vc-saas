@@ -77,7 +77,7 @@ export function NavUser() {
 
   async function handleStopImpersonating() {
     await authClient.admin.stopImpersonating()
-    router.push("/dashboard/admin/users")
+    router.push("/app/admin/users")
     router.refresh()
   }
 
@@ -125,7 +125,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                router.push("/dashboard/account")
+                router.push("/app/account")
                 router.refresh()
               }}
             >

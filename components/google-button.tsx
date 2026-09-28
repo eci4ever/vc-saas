@@ -5,7 +5,7 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
 export function GoogleButton({
-  callbackURL = "/dashboard",
+  callbackURL = "/app",
   label = "Continue with Google",
 }: {
   callbackURL?: string;

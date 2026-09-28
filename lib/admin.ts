@@ -19,7 +19,7 @@ export async function requireAdmin() {
     redirect("/login");
   }
   if (session.user.role !== "admin") {
-    redirect("/dashboard");
+    redirect("/app");
   }
   return session.user;
 }

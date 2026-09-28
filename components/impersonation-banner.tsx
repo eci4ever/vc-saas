@@ -18,7 +18,7 @@ export function ImpersonationBanner() {
 
   async function handleStop() {
     await authClient.admin.stopImpersonating();
-    router.push("/dashboard/admin/users");
+    router.push("/app/admin/users");
     router.refresh();
   }
 

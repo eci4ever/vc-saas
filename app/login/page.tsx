@@ -30,7 +30,7 @@ function LoginCard() {
     const { data, error } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: "/app",
     });
     setPending(false);
     if (error) {
@@ -44,7 +44,7 @@ function LoginCard() {
       setAwaitingTwoFactor(true);
       return;
     }
-    router.push("/dashboard");
+    router.push("/app");
   }
 
   async function handleTwoFactor(e: React.FormEvent<HTMLFormElement>) {
@@ -63,7 +63,7 @@ function LoginCard() {
       return;
     }
     setTwoFactorCode("");
-    router.push("/dashboard");
+    router.push("/app");
   }
 
   return (

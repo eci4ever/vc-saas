@@ -83,8 +83,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <SidebarMenu>
                   {items.map((item) => {
                     const active =
-                      item.href === "/dashboard"
-                        ? pathname === "/dashboard"
+                      item.href === "/app"
+                        ? pathname === "/app"
                         : pathname.startsWith(item.href)
                     return (
                       <SidebarMenuItem key={item.href}>

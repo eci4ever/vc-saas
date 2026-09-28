@@ -67,40 +67,40 @@ export type NavItem = {
 };
 
 /**
- * Single source of truth for dashboard navigation. The sidebar renders this
+ * Single source of truth for app navigation. The sidebar renders this
  * matrix and the route guards enforce the same predicates server-side, so
  * hiding an entry and blocking its URL can never drift apart.
  *
  * Workspace is the personal tier (everyone): Dashboard. Manage is org
  * management in a deliberate order: Overview, Billing, Settings — Members,
- * Invitations, and Teams live behind the Overview page's quick links instead
- * of the sidebar. Administration is platform-wide.
+ * Invitations, and Teams live behind the Overview page's tabs instead of
+ * the sidebar. Administration is platform-wide.
  */
 export const NAV_ITEMS: NavItem[] = [
   {
     title: "Dashboard",
-    href: "/dashboard",
+    href: "/app",
     icon: LayoutDashboardIcon,
     group: "workspace",
     visible: () => true,
   },
   {
     title: "Overview",
-    href: "/dashboard/manage",
+    href: "/app/manage",
     icon: GaugeIcon,
     group: "manage",
     visible: (nav) => isOrgManager(nav.orgRole),
   },
   {
     title: "Billing",
-    href: "/dashboard/billing",
+    href: "/app/billing",
     icon: CreditCardIcon,
     group: "manage",
     visible: (nav) => isOrgManager(nav.orgRole),
   },
   {
     title: "Settings",
-    href: "/dashboard/settings",
+    href: "/app/settings",
     icon: SettingsIcon,
     // Settings is workspace-only now that profile lives on the Account page.
     group: "manage",
@@ -108,35 +108,35 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     title: "Users",
-    href: "/dashboard/admin/users",
+    href: "/app/admin/users",
     icon: ShieldIcon,
     group: "administration",
     visible: (nav) => nav.isPlatformAdmin,
   },
   {
     title: "Organizations",
-    href: "/dashboard/admin/organizations",
+    href: "/app/admin/organizations",
     icon: Building2Icon,
     group: "administration",
     visible: (nav) => nav.isPlatformAdmin,
   },
   {
     title: "Plans",
-    href: "/dashboard/admin/plans",
+    href: "/app/admin/plans",
     icon: PackageIcon,
     group: "administration",
     visible: (nav) => nav.isPlatformAdmin,
   },
   {
     title: "Subscriptions",
-    href: "/dashboard/admin/subscriptions",
+    href: "/app/admin/subscriptions",
     icon: RepeatIcon,
     group: "administration",
     visible: (nav) => nav.isPlatformAdmin,
   },
   {
-    title: "Audit Log",
-    href: "/dashboard/admin/audit-log",
+    title: "Audit",
+    href: "/app/admin/audit",
     icon: ScrollTextIcon,
     group: "administration",
     visible: (nav) => nav.isPlatformAdmin,

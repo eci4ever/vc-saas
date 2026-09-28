@@ -74,19 +74,19 @@ export async function requireUser(): Promise<AccessContext> {
 
 export async function requirePlatformAdmin(): Promise<AccessContext> {
   const ctx = await requireUser();
-  if (!isPlatformAdmin(ctx.user.role)) redirect("/dashboard");
+  if (!isPlatformAdmin(ctx.user.role)) redirect("/app");
   return ctx;
 }
 
 export async function requireOrgManager(): Promise<AccessContext> {
   const ctx = await requireUser();
-  if (!isOrgManager(ctx.orgRole)) redirect("/dashboard");
+  if (!isOrgManager(ctx.orgRole)) redirect("/app");
   return ctx;
 }
 
 export async function requireOrgOwner(): Promise<AccessContext> {
   const ctx = await requireUser();
-  if (!isOrgOwner(ctx.orgRole)) redirect("/dashboard");
+  if (!isOrgOwner(ctx.orgRole)) redirect("/app");
   return ctx;
 }
 

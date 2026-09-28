@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import { invitation, member, team } from "@/db/auth-schema";
 import { requireOrgManager } from "@/lib/guards";
@@ -58,7 +57,6 @@ export default async function ManageOverviewPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Overview" />
       <p className="text-sm text-muted-foreground">
         A quick look at {ctx.activeOrganizationName} — you manage it as{" "}
         {ctx.orgRole?.split(",")[0]}.

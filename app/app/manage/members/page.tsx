@@ -21,7 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
-import { PageHeader } from "@/components/page-header";
 
 import { useOrgData, type FullMember } from "../use-org";
 
@@ -123,7 +122,6 @@ export default function ManageMembersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Members" />
       <Card>
         <CardHeader>
           <CardTitle>Invite member</CardTitle>

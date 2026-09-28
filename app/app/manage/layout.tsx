@@ -1,4 +1,5 @@
 import { requireOrgManager } from "@/lib/guards";
+import { PageHeader } from "@/components/page-header";
 
 import { ManageNav } from "./manage-nav";
 
@@ -10,6 +11,7 @@ export default async function ManageLayout({
   const ctx = await requireOrgManager();
   return (
     <>
+      <PageHeader title="Overview" />
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
           <div>

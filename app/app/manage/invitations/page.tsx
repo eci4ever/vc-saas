@@ -20,7 +20,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
-import { PageHeader } from "@/components/page-header";
 
 import { useOrgData } from "../use-org";
 
@@ -76,7 +75,6 @@ export default function ManageInvitationsPage() {
 
   return (
     <>
-      <PageHeader title="Invitations" />
       <Card>
       <CardHeader>
         <CardTitle>Invitations</CardTitle>

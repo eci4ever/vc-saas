@@ -1,9 +1,7 @@
 import {
   Building2Icon,
   CreditCardIcon,
-  FolderKanbanIcon,
   GaugeIcon,
-  KeyRoundIcon,
   LayoutDashboardIcon,
   PackageIcon,
   RepeatIcon,
@@ -73,24 +71,16 @@ export type NavItem = {
  * matrix and the route guards enforce the same predicates server-side, so
  * hiding an entry and blocking its URL can never drift apart.
  *
- * Workspace is the personal tier (everyone): Dashboard, Projects. Manage is
- * org management (owner/org admin) in a deliberate order: Overview, Api
- * Keys, Billing, Settings — Members, Invitations, and Teams live behind the
- * Overview page's quick links instead of the sidebar. Administration is
- * platform-wide.
+ * Workspace is the personal tier (everyone): Dashboard. Manage is org
+ * management in a deliberate order: Overview, Billing, Settings — Members,
+ * Invitations, and Teams live behind the Overview page's quick links instead
+ * of the sidebar. Administration is platform-wide.
  */
 export const NAV_ITEMS: NavItem[] = [
   {
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboardIcon,
-    group: "workspace",
-    visible: () => true,
-  },
-  {
-    title: "Projects",
-    href: "/dashboard/projects",
-    icon: FolderKanbanIcon,
     group: "workspace",
     visible: () => true,
   },
@@ -102,18 +92,11 @@ export const NAV_ITEMS: NavItem[] = [
     visible: (nav) => isOrgManager(nav.orgRole),
   },
   {
-    title: "Api Keys",
-    href: "/dashboard/api-keys",
-    icon: KeyRoundIcon,
-    group: "manage",
-    visible: () => true,
-  },
-  {
     title: "Billing",
     href: "/dashboard/billing",
     icon: CreditCardIcon,
     group: "manage",
-    visible: () => true,
+    visible: (nav) => isOrgManager(nav.orgRole),
   },
   {
     title: "Settings",

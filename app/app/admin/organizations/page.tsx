@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
 import { db } from "@/db";
-import { member, organization, team } from "@/db/auth-schema";
+import { member, organization, team, user } from "@/db/auth-schema";
 import { requireAdmin } from "@/lib/admin";
 
 import { OrgRowActions } from "./org-row-actions";
@@ -32,13 +32,26 @@ export default async function AdminOrganizationsPage({
       createdAt: organization.createdAt,
       memberCount: sql<number>`(select count(*)::int from ${member} where ${member.organizationId} = ${organization.id})`,
       teamCount: sql<number>`(select count(*)::int from ${team} where ${team.organizationId} = ${organization.id})`,
+      // First owner (or earliest member) identifies the workspace, which
+      // matters now that every default workspace shares the same name. The
+      // outer column is written qualified ("organization"."id") because the
+      // joined m/u tables make an unqualified "id" ambiguous inside PG.
+      ownerName: sql<
+        string | null
+      >`(select u.name from ${member} m join ${user} u on u.id = m.user_id where m.organization_id = organization.id order by m.created_at limit 1)`,
+      ownerEmail: sql<
+        string | null
+      >`(select u.email from ${member} m join ${user} u on u.id = m.user_id where m.organization_id = organization.id order by m.created_at limit 1)`,
     })
     .from(organization)
     .where(
       query
         ? or(
             ilike(organization.name, `%${query}%`),
-            ilike(organization.slug, `%${query}%`)
+            ilike(organization.slug, `%${query}%`),
+            // Search by the owner's email too — the fastest way to find a
+            // specific user's workspace when names are identical.
+            sql`exists (select 1 from ${member} m join ${user} u on u.id = m.user_id where m.organization_id = organization.id and u.email ilike ${`%${query}%`})`
           )
         : undefined
     )
@@ -69,7 +82,7 @@ export default async function AdminOrganizationsPage({
           <Card>
             <CardHeader>
               <CardTitle>All organizations</CardTitle>
-              <CardDescription>Search by name or slug.</CardDescription>
+              <CardDescription>Search by name, slug, or owner email.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <form method="get" className="flex gap-2">
@@ -97,6 +110,9 @@ export default async function AdminOrganizationsPage({
                     <div className="grid flex-1 leading-tight">
                       <span className="truncate font-medium">{org.name}</span>
                       <span className="truncate text-xs text-muted-foreground">
+                        {org.ownerEmail
+                          ? `${org.ownerName} · ${org.ownerEmail} · `
+                          : ""}
                         {org.slug} · {org.memberCount} member
                         {org.memberCount === 1 ? "" : "s"} · {org.teamCount} team
                         {org.teamCount === 1 ? "" : "s"} · created{" "}

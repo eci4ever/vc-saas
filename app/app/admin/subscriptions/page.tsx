@@ -1,4 +1,4 @@
-import { eq, ilike } from "drizzle-orm";
+import { eq, ilike, or, sql } from "drizzle-orm";
 
 import {
   Card,
@@ -36,11 +36,13 @@ function statusClass(status: string) {
 export default async function AdminSubscriptionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; plan?: string }>;
 }) {
   await requireAdmin();
-  const { q } = await searchParams;
+  const { q, plan } = await searchParams;
   const query = q?.trim() ? q.trim() : undefined;
+  // "free" means no subscription row; anything else filters the plan id.
+  const planFilter = plan === "free" || PLANS.some((p) => p.id === plan) ? plan : undefined;
 
   const rows = await db
     .select({
@@ -48,14 +50,38 @@ export default async function AdminSubscriptionsPage({
       name: organization.name,
       slug: organization.slug,
       sub: subscriptions,
+      ownerName: sql<
+        string | null
+      >`(select u.name from member m join "user" u on u.id = m.user_id where m.organization_id = organization.id order by m.created_at limit 1)`,
+      ownerEmail: sql<
+        string | null
+      >`(select u.email from member m join "user" u on u.id = m.user_id where m.organization_id = organization.id order by m.created_at limit 1)`,
     })
     .from(organization)
     .leftJoin(subscriptions, eq(subscriptions.organizationId, organization.id))
-    .where(query ? ilike(organization.name, `%${query}%`) : undefined)
+    .where(
+      query
+        ? or(
+            ilike(organization.name, `%${query}%`),
+            ilike(organization.slug, `%${query}%`),
+            sql`exists (select 1 from member m join "user" u on u.id = m.user_id where m.organization_id = organization.id and u.email ilike ${`%${query}%`})`
+          )
+        : undefined
+    )
     .orderBy(organization.name);
 
-  const activeRows = rows.filter((r) => effectiveStatus(r.sub) === "active");
-  const expiredCount = rows.filter(
+  // Plan filtering happens in JS so "free" (no subscription row) and
+  // plan-specific rows share one code path.
+  const filteredRows = rows.filter((r) => {
+    if (!planFilter) return true;
+    if (planFilter === "free") return !r.sub;
+    return r.sub?.planId === planFilter;
+  });
+
+  const activeRows = filteredRows.filter(
+    (r) => effectiveStatus(r.sub) === "active"
+  );
+  const expiredCount = filteredRows.filter(
     (r) => effectiveStatus(r.sub) === "expired"
   ).length;
   const monthlyEquivalent = activeRows.reduce((sum, r) => {
@@ -81,9 +107,28 @@ export default async function AdminSubscriptionsPage({
               type="search"
               name="q"
               defaultValue={query}
-              placeholder="Search workspaces…"
+              placeholder="Search by name or owner email…"
               className="h-9 w-56 rounded-full border border-zinc-200 bg-transparent px-4 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white"
             />
+            <select
+              name="plan"
+              defaultValue={planFilter ?? ""}
+              className="h-9 rounded-full border border-zinc-200 bg-transparent px-3 text-sm outline-none focus:border-zinc-950 dark:border-white/15 dark:focus:border-white"
+            >
+              <option value="">All plans</option>
+              <option value="free">Free</option>
+              {PLANS.filter((p) => p.monthlySen > 0).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="flex h-9 items-center rounded-full border border-zinc-200 px-4 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-white/15 dark:hover:bg-white/10"
+            >
+              Filter
+            </button>
           </form>
         </div>
 
@@ -91,7 +136,7 @@ export default async function AdminSubscriptionsPage({
           <Card>
             <CardHeader>
               <CardDescription>Workspaces</CardDescription>
-              <CardTitle className="text-3xl">{rows.length}</CardTitle>
+              <CardTitle className="text-3xl">{filteredRows.length}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -125,7 +170,7 @@ export default async function AdminSubscriptionsPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {rows.map((row) => {
+            {filteredRows.map((row) => {
               const status = effectiveStatus(row.sub);
               return (
                 <div
@@ -142,6 +187,9 @@ export default async function AdminSubscriptionsPage({
                       </span>
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
+                      {row.ownerEmail
+                        ? `${row.ownerName} · ${row.ownerEmail} · `
+                        : ""}
                       {row.sub && status === "active"
                         ? `${row.sub.planId} · ${row.sub.cycle} · period ends ${row.sub.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })} · ${row.slug}`
                         : row.sub

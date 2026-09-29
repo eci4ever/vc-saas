@@ -19,6 +19,9 @@ export const subscriptions = pgTable("subscriptions", {
   // Set when the expiry reminder email for the current period was sent, so
   // the daily cron reminds at most once per period.
   reminderSentAt: timestamp("reminder_sent_at"),
+  // Set when the "your subscription has expired" email was sent, so the
+  // expiry notice also fires at most once per lapse.
+  expiredNotifiedAt: timestamp("expired_notified_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -38,9 +41,14 @@ export const payments = pgTable("payments", {
   cycle: text("cycle").notNull(),
   // MYR sen, matching Billplz amounts exactly.
   amount: integer("amount").notNull(),
-  // due | paid | failed
+  // due | paid | failed | canceled (superseded by a newer bill) | expired
   status: text("status").notNull().default("due"),
   billUrl: text("bill_url").notNull(),
+  // billplz (online) | offline (admin-recorded transfer)
+  method: text("method").notNull().default("billplz"),
   paidAt: timestamp("paid_at"),
+  // When a newer bill supersedes a due one, or the bill lapses past its
+  // due date without payment.
+  canceledAt: timestamp("canceled_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

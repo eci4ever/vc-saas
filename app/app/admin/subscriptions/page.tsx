@@ -143,9 +143,9 @@ export default async function AdminSubscriptionsPage({
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {row.sub && status === "active"
-                        ? `${row.sub.planId} · ${row.sub.cycle} · period ends ${row.sub.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}`
+                        ? `${row.sub.planId} · ${row.sub.cycle} · period ends ${row.sub.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })} · ${row.slug}`
                         : row.sub
-                          ? `last: ${row.sub.planId} · ended ${row.sub.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })}`
+                          ? `last: ${row.sub.planId} · ended ${row.sub.periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" })} · ${row.slug}`
                           : row.slug}
                     </span>
                   </div>

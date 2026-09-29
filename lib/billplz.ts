@@ -29,6 +29,8 @@ export async function createBill(input: {
   description: string;
   callbackUrl: string;
   redirectUrl: string;
+  /** Optional payment deadline, passed to Billplz as due_at (unix seconds). */
+  dueAt?: Date;
 }): Promise<CreatedBill> {
   const collectionId = process.env.BILLPLZ_COLLECTION_ID;
   if (!collectionId) throw new Error("BILLPLZ_COLLECTION_ID is not set");
@@ -41,6 +43,9 @@ export async function createBill(input: {
     callback_url: input.callbackUrl,
     redirect_url: input.redirectUrl,
   });
+  if (input.dueAt) {
+    body.set("due_at", String(Math.floor(input.dueAt.getTime() / 1000)));
+  }
   const res = await fetch(`${baseUrl()}/api/v3/bills`, {
     method: "POST",
     headers: {

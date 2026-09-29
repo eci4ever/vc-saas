@@ -79,6 +79,46 @@ export async function sendPasswordResetEmail({
   });
 }
 
+/** Subscription-lapsed notice: the paid period has ended without renewal. */
+export async function sendSubscriptionExpiredEmail({
+  to,
+  orgName,
+  planLabel,
+  periodEnd,
+  renewUrl,
+}: {
+  to: string;
+  orgName: string;
+  planLabel: string;
+  periodEnd: Date;
+  renewUrl: string;
+}) {
+  const from = process.env.EMAIL_FROM;
+  if (!from) {
+    throw new Error("EMAIL_FROM is not set");
+  }
+  const replyTo = process.env.EMAIL_REPLY_TO || undefined;
+  await getResend().emails.send({
+    from,
+    to,
+    ...(replyTo ? { replyTo } : {}),
+    subject: `Your ${planLabel} plan for ${orgName} has expired`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
+        <h2>Subscription expired</h2>
+        <p>The <strong>${planLabel}</strong> subscription for <strong>${orgName}</strong> ended on ${periodEnd.toLocaleDateString("en-MY", { day: "numeric", month: "long", year: "numeric" })} and was not renewed.</p>
+        <p>Your workspace is still accessible — renew anytime to get back on the plan.</p>
+        <p>
+          <a href="${renewUrl}" style="display: inline-block; background: #09090b; color: #fff; padding: 12px 24px; border-radius: 999px; text-decoration: none;">
+            Renew now
+          </a>
+        </p>
+        <p style="color: #71717a; font-size: 14px;">If the button doesn't work, open this link: ${renewUrl}</p>
+      </div>
+    `,
+  });
+}
+
 /** Subscription expiry reminder for a workspace owner. */
 export async function sendSubscriptionReminderEmail({
   to,
@@ -119,6 +159,7 @@ export async function sendSubscriptionReminderEmail({
   });
 }
 
+/** Invitation email for a new workspace member. */
 export async function sendOrganizationInvitation({
   to,
   inviterName,

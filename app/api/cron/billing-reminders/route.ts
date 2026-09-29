@@ -3,7 +3,7 @@ import { and, eq, gte, lte, isNull, or, lt } from "drizzle-orm";
 import { db } from "@/db";
 import { member, organization, user } from "@/db/auth-schema";
 import { subscriptions } from "@/db/billing-schema";
-import { sendSubscriptionReminderEmail } from "@/lib/email";
+import { sendSubscriptionExpiredEmail, sendSubscriptionReminderEmail } from "@/lib/email";
 import { planName } from "@/lib/plans";
 
 const REMINDER_DAYS = 7;
@@ -46,30 +46,55 @@ export async function GET(req: Request) {
       )
     );
 
+  // Lapsed subscriptions (period ended, never renewed): one expiry notice
+  // per lapse. The row stays "active" until the owner renews or cancels —
+  // expiry is derived, so this flag is the only once-per-lapse guard. The
+  // notice re-fires only when the flag predates the current period end
+  // (renewed once, lapsed again).
+  const expired = await db
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.status, "active"),
+        lt(subscriptions.periodEnd, now),
+        or(
+          isNull(subscriptions.expiredNotifiedAt),
+          lt(subscriptions.expiredNotifiedAt, subscriptions.periodEnd)
+        )
+      )
+    );
+
   const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   let sent = 0;
+  let expiredSent = 0;
   const failures: string[] = [];
 
-  for (const sub of due) {
+  async function orgOwner(organizationId: string) {
     const [org] = await db
       .select({ id: organization.id, name: organization.name })
       .from(organization)
-      .where(eq(organization.id, sub.organizationId))
+      .where(eq(organization.id, organizationId))
       .limit(1);
-    if (!org) continue;
+    if (!org) return null;
     const [owner] = await db
       .select({ email: user.email, name: user.name })
       .from(member)
       .innerJoin(user, eq(user.id, member.userId))
       .where(
-        and(eq(member.organizationId, sub.organizationId), eq(member.role, "owner"))
+        and(eq(member.organizationId, organizationId), eq(member.role, "owner"))
       )
       .limit(1);
+    return owner ? { ...owner, orgName: org.name } : null;
+  }
+
+  for (const sub of due) {
+    const owner = await orgOwner(sub.organizationId);
     if (!owner) continue;
     try {
       await sendSubscriptionReminderEmail({
         to: owner.email,
-        orgName: org.name,
+        orgName: owner.orgName,
         planLabel: `${planName(sub.planId)} (${sub.cycle})`,
         periodEnd: sub.periodEnd,
         renewUrl: `${appUrl}/app/billing`,
@@ -86,5 +111,35 @@ export async function GET(req: Request) {
       .where(eq(subscriptions.id, sub.id));
   }
 
-  return Response.json({ ok: true, due: due.length, sent, failures });
+  for (const sub of expired) {
+    const owner = await orgOwner(sub.organizationId);
+    if (!owner) continue;
+    try {
+      await sendSubscriptionExpiredEmail({
+        to: owner.email,
+        orgName: owner.orgName,
+        planLabel: `${planName(sub.planId)} (${sub.cycle})`,
+        periodEnd: sub.periodEnd,
+        renewUrl: `${appUrl}/app/billing`,
+      });
+      expiredSent += 1;
+    } catch (e) {
+      console.error("Expiry email failed:", e);
+      failures.push(owner.email);
+      continue;
+    }
+    await db
+      .update(subscriptions)
+      .set({ expiredNotifiedAt: new Date() })
+      .where(eq(subscriptions.id, sub.id));
+  }
+
+  return Response.json({
+    ok: true,
+    due: due.length,
+    sent,
+    expired: expired.length,
+    expiredSent,
+    failures,
+  });
 }

@@ -8,7 +8,14 @@ import {
   getRequestAdmin,
   logAdminAction,
 } from "@/lib/admin";
-import { cycleMonths, isBillingCycle, isPlanId, planName } from "@/lib/plans";
+import { recordOfflinePayment } from "@/lib/billing";
+import {
+  amountInSen,
+  cycleMonths,
+  isBillingCycle,
+  isPlanId,
+  planName,
+} from "@/lib/plans";
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "Action failed.";
@@ -66,34 +73,43 @@ export async function POST(req: Request) {
       .limit(1);
 
     const now = new Date();
+    const hasOfflineNote = typeof note === "string" && !!note.trim();
     const periodStart =
-      renewFromEnd && current && current.periodEnd.getTime() > now.getTime()
+      !hasOfflineNote &&
+      renewFromEnd &&
+      current &&
+      current.periodEnd.getTime() > now.getTime()
         ? current.periodEnd
         : now;
     const periodEnd = new Date(periodStart);
     periodEnd.setMonth(periodEnd.getMonth() + cycleMonths(cycle));
 
-    await db
-      .insert(subscriptions)
-      .values({
-        organizationId,
-        planId,
-        cycle,
-        status: "active",
-        periodStart,
-        periodEnd,
-      })
-      .onConflictDoUpdate({
-        target: subscriptions.organizationId,
-        set: {
+    if (!hasOfflineNote) {
+      // Pure assignment (no money recorded): adjust the subscription only.
+      await db
+        .insert(subscriptions)
+        .values({
+          organizationId,
           planId,
           cycle,
           status: "active",
           periodStart,
           periodEnd,
-          canceledAt: null,
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: subscriptions.organizationId,
+          set: {
+            planId,
+            cycle,
+            status: "active",
+            periodStart,
+            periodEnd,
+            canceledAt: null,
+            reminderSentAt: null,
+            expiredNotifiedAt: null,
+          },
+        });
+    }
 
     const planLabel = `${planName(planId)} (${cycle})`;
     const anchorLabel = renewFromEnd ? "renewal from period end" : "period restarts";
@@ -105,6 +121,21 @@ export async function POST(req: Request) {
       targetEmail: org.name,
       reason: `Assigned ${planLabel}, ${anchorLabel}${typeof note === "string" && note.trim() ? ` — ${note.trim()}` : ""}`,
     });
+
+    // An offline payment (bank transfer etc.) becomes an invoice too, via
+    // the same idempotent activation path as an online one. The admin's
+    // anchor choice decides whether the period restarts or extends.
+    if (hasOfflineNote) {
+      await recordOfflinePayment({
+        organizationId,
+        userId: adminUser.id,
+        planId,
+        cycle,
+        amount: amountInSen(planId, cycle),
+        note: (note as string).trim(),
+        anchor: renewFromEnd ? "period_end" : "now",
+      });
+    }
   } catch (e) {
     return Response.json({ error: errorMessage(e) }, { status: 400 });
   }

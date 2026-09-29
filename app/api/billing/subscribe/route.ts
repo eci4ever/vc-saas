@@ -3,6 +3,7 @@ import { payments } from "@/db/billing-schema";
 import { getAccessContext } from "@/lib/guards";
 import { isOrgOwner } from "@/lib/access";
 import { createBill } from "@/lib/billplz";
+import { supersedeOtherDueBills, BILL_DUE_DAYS } from "@/lib/billing";
 import { amountInSen, isBillingCycle, isPlanId, planName } from "@/lib/plans";
 
 function appUrl(): string {
@@ -42,6 +43,8 @@ export async function POST(req: Request) {
   }
 
   const amount = amountInSen(planId, cycle);
+  const dueAt = new Date();
+  dueAt.setDate(dueAt.getDate() + BILL_DUE_DAYS);
   try {
     const bill = await createBill({
       email: ctx.user.email,
@@ -52,6 +55,7 @@ export async function POST(req: Request) {
       // Billplz appends billplz_id + billplz_paid; the page re-verifies the
       // bill server-side instead of trusting the query params.
       redirectUrl: `${appUrl()}/app/billing?billplz=return`,
+      dueAt,
     });
     await db.insert(payments).values({
       organizationId,
@@ -63,6 +67,9 @@ export async function POST(req: Request) {
       status: "due",
       billUrl: bill.url,
     });
+    // Only one payable bill at a time: the newest wins, older due bills are
+    // marked canceled so the invoice list never shows competing pay links.
+    await supersedeOtherDueBills(organizationId, bill.id);
     return Response.json({ url: bill.url });
   } catch (e) {
     console.error("Billplz subscribe failed:", e);

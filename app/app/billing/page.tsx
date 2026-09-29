@@ -27,7 +27,7 @@ function statusBadge(status: string) {
   if (status === "active")
     return <Badge>Active</Badge>;
   if (status === "expired")
-    return <Badge variant="outline">Expired</Badge>;
+    return <Badge variant="destructive">Expired</Badge>;
   if (status === "canceled")
     return <Badge variant="outline">Canceled</Badge>;
   return <Badge variant="secondary">Free</Badge>;
@@ -157,18 +157,35 @@ export default async function BillingPage({
                               {" "}
                               · {invoice.cycle}
                             </span>
+                            {invoice.method === "offline" ? (
+                              <span className="text-xs text-muted-foreground">
+                                {" "}
+                                · offline
+                              </span>
+                            ) : null}
                           </TableCell>
                           <TableCell>{formatRm(invoice.amount)}</TableCell>
                           <TableCell className="text-right">
                             {invoice.status === "paid" ? (
                               <Badge variant="secondary">Paid</Badge>
+                            ) : invoice.lapsed ? (
+                              // Past its 7-day payment window and unpaid.
+                              <Badge variant="outline">Expired</Badge>
                             ) : invoice.status === "due" ? (
-                              <a
-                                href={invoice.billUrl}
-                                className="text-sm font-medium underline underline-offset-4"
-                              >
-                                Pay now
-                              </a>
+                              invoice.billUrl ? (
+                                <a
+                                  href={invoice.billUrl}
+                                  className="text-sm font-medium underline underline-offset-4"
+                                >
+                                  Pay now
+                                </a>
+                              ) : (
+                                <Badge variant="secondary">Due</Badge>
+                              )
+                            ) : invoice.status === "canceled" ? (
+                              <Badge variant="outline">Canceled</Badge>
+                            ) : invoice.status === "expired" ? (
+                              <Badge variant="outline">Expired</Badge>
                             ) : (
                               <Badge variant="destructive">Failed</Badge>
                             )}

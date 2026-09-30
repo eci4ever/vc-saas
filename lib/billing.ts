@@ -1,12 +1,18 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 
 import { db } from "@/db";
+import { organization, member, user as userTable } from "@/db/auth-schema";
 import { payments, subscriptions } from "@/db/billing-schema";
 import {
+  amountInSen,
   cycleMonths,
+  formatRm,
+  isPlanId,
+  planName,
   type BillingCycle,
   type PlanId,
 } from "@/lib/plans";
+import { sendPaymentReceiptEmail } from "@/lib/email";
 
 export type SubscriptionStatus = "active" | "expired" | "canceled";
 
@@ -39,6 +45,31 @@ export async function getSubscription(
     periodStart: row.periodStart,
     periodEnd: row.periodEnd,
   };
+}
+
+/**
+ * The plan a workspace is effectively on right now: its live subscription's
+ * plan, or Free when there is none. Expired/canceled rows fall back to Free.
+ */
+export async function getOrgPlan(organizationId: string): Promise<PlanId> {
+  const [row] = await db
+    .select({
+      planId: subscriptions.planId,
+      status: subscriptions.status,
+      periodEnd: subscriptions.periodEnd,
+    })
+    .from(subscriptions)
+    .where(eq(subscriptions.organizationId, organizationId))
+    .limit(1);
+  if (
+    row &&
+    row.status === "active" &&
+    row.periodEnd.getTime() > Date.now() &&
+    isPlanId(row.planId)
+  ) {
+    return row.planId;
+  }
+  return "free";
 }
 
 export async function listPayments(organizationId: string, limit = 20) {
@@ -114,7 +145,7 @@ export async function activateFromPayment(input: {
     .where(
       and(eq(payments.billId, input.billId), eq(payments.status, "due"))
     )
-    .returning({ id: payments.id });
+    .returning({ id: payments.id, amount: payments.amount });
   if (claimed.length === 0) return false;
   await supersedeOtherDueBills(input.organizationId, input.billId);
 
@@ -169,6 +200,46 @@ export async function activateFromPayment(input: {
         expiredNotifiedAt: null,
       },
     });
+
+  // Receipt goes to the workspace owner, only when activation actually
+  // happened (the idempotent claim above makes this fire exactly once) and
+  // only for a real charge — an offline Free assignment gets no receipt.
+  const amount = claimed[0]?.amount ?? amountInSen(input.planId, input.cycle);
+  if (amount > 0) {
+    try {
+      const [owner] = await db
+        .select({ email: userTable.email })
+        .from(member)
+        .innerJoin(userTable, eq(userTable.id, member.userId))
+        .where(
+          and(
+            eq(member.organizationId, input.organizationId),
+            eq(member.role, "owner")
+          )
+        )
+        .orderBy(asc(member.createdAt))
+        .limit(1);
+      const [org] = await db
+        .select({ name: organization.name })
+        .from(organization)
+        .where(eq(organization.id, input.organizationId))
+        .limit(1);
+      if (owner && org) {
+        await sendPaymentReceiptEmail({
+          to: owner.email,
+          orgName: org.name,
+          planLabel: planName(input.planId),
+          cycleLabel: input.cycle,
+          amountRm: formatRm(amount),
+          periodEnd,
+          billId: input.billId,
+        });
+      }
+    } catch (e) {
+      // The payment already activated; an email outage must not fail it.
+      console.error("Failed to send payment receipt:", e);
+    }
+  }
   return true;
 }
 

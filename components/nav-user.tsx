@@ -20,14 +20,19 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar"
 import {
+  CheckIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
   ScanFaceIcon,
+  SunIcon,
   UserRoundIcon,
 } from "lucide-react"
+import { useTheme } from "next-themes"
+
 import { authClient } from "@/lib/auth-client"
 
 function initials(name: string, email: string) {
@@ -43,8 +48,9 @@ function initials(name: string, email: string) {
 
 export function NavUser() {
   const router = useRouter()
-  const { isMobile } = useSidebar()
   const { data: session, isPending } = authClient.useSession()
+  // Hooks must run before the pending/user early returns below.
+  const { theme, setTheme } = useTheme()
   const user = session?.user
 
   if (isPending || !user) {
@@ -132,6 +138,25 @@ export function NavUser() {
               <UserRoundIcon />
               Account
             </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                <SunIcon />
+                Light
+                {theme === "light" ? <CheckIcon className="ml-auto size-4" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                <MoonIcon />
+                Dark
+                {theme === "dark" ? <CheckIcon className="ml-auto size-4" /> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                <MonitorIcon />
+                System
+                {theme === "system" ? (
+                  <CheckIcon className="ml-auto size-4" />
+                ) : null}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             {impersonatedBy ? (
               <DropdownMenuItem onClick={handleStopImpersonating}>
                 <ScanFaceIcon />

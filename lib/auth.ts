@@ -1,11 +1,18 @@
 import { betterAuth, APIError } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { createAuthMiddleware } from "better-auth/api";
 import { admin, organization, twoFactor } from "better-auth/plugins";
 import { and, count, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { member, user as userTable } from "@/db/auth-schema";
+import {
+  invitation,
+  member,
+  team,
+  user as userTable,
+} from "@/db/auth-schema";
 import { logAdminAction } from "@/lib/admin";
+import { getOrgPlan } from "@/lib/billing";
 import { isDefaultMetadata } from "@/lib/workspace";
 import {
   sendOrganizationInvitation,
@@ -13,6 +20,7 @@ import {
   sendVerificationEmail,
 } from "@/lib/email";
 import { BRAND_NAME } from "@/lib/brand";
+import { planName, planLimits } from "@/lib/plans";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -147,13 +155,77 @@ export const auth = betterAuth({
       },
     },
   },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Plan-limit enforcement, centralised here so every entry point
+      // (invite from Members page, straight-into-team invite, acceptance
+      // link, Teams page) is gated server-side no matter the client.
+      const organizationId = (ctx.body as { organizationId?: string })
+        ?.organizationId;
+
+      // Seat limit: inviting a new member, or accepting an invitation
+      // (its body only carries invitationId — resolve the org from the row).
+      if (
+        ctx.path === "/organization/invite-member" ||
+        ctx.path === "/organization/accept-invitation"
+      ) {
+        let orgId = organizationId;
+        if (ctx.path === "/organization/accept-invitation") {
+          const invitationId = (ctx.body as { invitationId?: string })
+            ?.invitationId;
+          if (!invitationId) return;
+          const [row] = await db
+            .select({ organizationId: invitation.organizationId })
+            .from(invitation)
+            .where(eq(invitation.id, invitationId))
+            .limit(1);
+          orgId = row?.organizationId;
+        }
+        if (!orgId) return;
+        const planId = await getOrgPlan(orgId);
+        const limits = planLimits(planId);
+        if (limits.seats === null) return;
+        const [row] = await db
+          .select({ value: count() })
+          .from(member)
+          .where(eq(member.organizationId, orgId));
+        if (Number(row?.value ?? 0) >= limits.seats) {
+          throw new APIError("FORBIDDEN", {
+            message: `The ${planName(planId)} plan allows up to ${limits.seats} members per workspace. Upgrade the plan to invite more.`,
+          });
+        }
+      }
+
+      // Team limit: creating a team.
+      if (ctx.path === "/organization/create-team") {
+        if (!organizationId) return;
+        const planId = await getOrgPlan(organizationId);
+        const limits = planLimits(planId);
+        if (limits.teams === null) return;
+        const [row] = await db
+          .select({ value: count() })
+          .from(team)
+          .where(eq(team.organizationId, organizationId));
+        if (Number(row?.value ?? 0) >= limits.teams) {
+          throw new APIError("FORBIDDEN", {
+            message: `The ${planName(planId)} plan allows up to ${limits.teams} team${limits.teams === 1 ? "" : "s"} per workspace. Upgrade the plan to add more.`,
+          });
+        }
+      }
+    }),
+  },
   plugins: [
     admin(),
     twoFactor({
       issuer: BRAND_NAME,
     }),
     organization({
-      teams: { enabled: true },
+      teams: {
+        enabled: true,
+        // No automatic team named after the organization — teams are what
+        // members create, which keeps the plan team-limit count honest.
+        defaultTeam: { enabled: false },
+      },
       async sendInvitationEmail(data) {
         const baseUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
         try {

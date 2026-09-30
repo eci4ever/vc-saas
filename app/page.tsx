@@ -4,6 +4,7 @@ import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { StatusIndicators, type Status } from "@/components/status-indicators";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { formatRm, PLANS } from "@/lib/plans";
+import { formatRm, limitLabel, PLANS } from "@/lib/plans";
 
 import { db } from "@/db";
 
@@ -55,6 +56,7 @@ export default async function Home() {
           >
             Sign in
           </Link>
+          <ThemeToggle />
           <Button
             render={<Link href="/signup" />}
             nativeButton={false}
@@ -140,6 +142,10 @@ export default async function Home() {
                       {plan.monthlySen === 0 ? " forever" : " / month"}
                     </span>
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    {limitLabel(plan.limits.seats, "seat")} ·{" "}
+                    {limitLabel(plan.limits.teams, "team")}
+                  </p>
                   {plan.monthlySen > 0 ? (
                     <p className="text-xs text-muted-foreground">
                       RM{(Math.round(plan.monthlySen * 3 * 0.9) / 100).toFixed(2)}{" "}
@@ -166,6 +172,21 @@ export default async function Home() {
           </div>
         </section>
       </main>
+
+      <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-border/60 px-6 py-6 text-sm text-muted-foreground">
+        <BrandMark />
+        <div className="flex items-center gap-4">
+          <Link href="/terms" className="transition-colors hover:text-foreground">
+            Terms
+          </Link>
+          <Link href="/privacy" className="transition-colors hover:text-foreground">
+            Privacy
+          </Link>
+          <Link href="/refund" className="transition-colors hover:text-foreground">
+            Refunds
+          </Link>
+        </div>
+      </footer>
     </div>
   );
 }

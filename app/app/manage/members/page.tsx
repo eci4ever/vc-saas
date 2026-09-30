@@ -23,6 +23,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 
 import { useOrgData, type FullMember } from "../use-org";
+import { usePlanLimits, usageLine } from "../use-limits";
 
 const inputClass =
   "h-11 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white";
@@ -38,6 +39,10 @@ export default function ManageMembersPage() {
   const [rowError, setRowError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<FullMember | null>(null);
   const [removePending, setRemovePending] = useState(false);
+
+  // Bumped after membership changes so the seat badge tracks reality.
+  const [limitsToken, setLimitsToken] = useState(0);
+  const limits = usePlanLimits(activeOrg?.id, limitsToken);
 
   const myUserId = session?.user?.id ?? null;
   const ownerCount = members.filter((m) =>
@@ -70,6 +75,7 @@ export default function ManageMembersPage() {
         ? "Invitation sent — they will join the selected team on accept."
         : "Invitation sent by email."
     );
+    setLimitsToken((n) => n + 1);
     router.refresh();
   }
 
@@ -105,6 +111,7 @@ export default function ManageMembersPage() {
     }
     setRemoving(null);
     refresh();
+    setLimitsToken((n) => n + 1);
     router.refresh();
   }
 
@@ -189,6 +196,9 @@ export default function ManageMembersPage() {
             {loading
               ? "Loading members…"
               : `${members.length} member${members.length === 1 ? "" : "s"} in ${activeOrg.name}.`}
+            {usageLine(limits, "seats")
+              ? ` ${usageLine(limits, "seats")}`
+              : null}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

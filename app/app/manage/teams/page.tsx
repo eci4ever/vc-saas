@@ -23,6 +23,7 @@ import {
 import { authClient } from "@/lib/auth-client";
 
 import { useOrgData, type FullMember } from "../use-org";
+import { usePlanLimits, usageLine } from "../use-limits";
 
 const inputClass =
   "h-11 rounded-xl border border-zinc-200 bg-transparent px-3 text-sm font-normal outline-none placeholder:text-zinc-400 focus:border-zinc-950 dark:border-white/15 dark:focus:border-white";
@@ -70,6 +71,10 @@ export default function ManageTeamsPage() {
   }, [activeOrg?.id, reloadToken]);
 
   const loadTeams = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  // reloadToken doubles as the limits refresh: every successful team action
+  // bumps it, so the usage line tracks the roster.
+  const limits = usePlanLimits(activeOrg?.id, reloadToken);
 
   function note(nextMsg: string | null, nextError: string | null = null) {
     setMsg(nextMsg);
@@ -182,7 +187,10 @@ export default function ManageTeamsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Create team</CardTitle>
-          <CardDescription>Teams group members inside {activeOrg.name}.</CardDescription>
+          <CardDescription>
+            Teams group members inside {activeOrg.name}.
+            {usageLine(limits, "teams") ? ` ${usageLine(limits, "teams")}` : null}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="flex gap-2" onSubmit={handleCreate}>

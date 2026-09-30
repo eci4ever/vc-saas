@@ -13,12 +13,29 @@ export const BILLING_CYCLES: readonly BillingCycle[] = [
   "yearly",
 ];
 
+/**
+ * Per-workspace limits a plan enforces. `null` means unlimited. These are
+ * enforced server-side on invite/accept (seats) and team create (teams).
+ */
+export type PlanLimits = {
+  /** Max members in the workspace, the owner included. */
+  seats: number | null;
+  /** Max teams inside the workspace. */
+  teams: number | null;
+};
+
 export type Plan = {
   id: PlanId;
   name: string;
   description: string;
   /** Base price per month, MYR sen. Free is 0. */
   monthlySen: number;
+  limits: PlanLimits;
+  /**
+   * Gated capability flags checked via hasFeature(). The starter ships with
+   * none — add your own (e.g. "custom-domain") and gate UI/API on it.
+   */
+  features: readonly string[];
 };
 
 export const PLANS: readonly Plan[] = [
@@ -27,18 +44,24 @@ export const PLANS: readonly Plan[] = [
     name: "Free",
     description: "Everything in the starter, for one workspace.",
     monthlySen: 0,
+    limits: { seats: 3, teams: 1 },
+    features: [],
   },
   {
     id: "starter",
     name: "Starter",
     description: "For small teams getting serious.",
     monthlySen: 2900,
+    limits: { seats: 10, teams: 5 },
+    features: [],
   },
   {
     id: "pro",
     name: "Pro",
     description: "For workspaces that need it all.",
     monthlySen: 7900,
+    limits: { seats: null, teams: null },
+    features: [],
   },
 ];
 
@@ -77,6 +100,26 @@ export function cycleMonths(cycle: BillingCycle): number {
 
 export function planName(planId: string): string {
   return PLANS.find((p) => p.id === planId)?.name ?? planId;
+}
+
+export function planLimits(planId: string): PlanLimits {
+  return (
+    PLANS.find((p) => p.id === planId)?.limits ?? { seats: null, teams: null }
+  );
+}
+
+/** "3 seats" / "Unlimited seats" for UI copy. */
+export function limitLabel(value: number | null, noun: string): string {
+  return value === null
+    ? `Unlimited ${noun}s`
+    : `${value} ${noun}${value === 1 ? "" : "s"}`;
+}
+
+/** True when the given plan unlocks the capability flag. */
+export function hasFeature(planId: string, feature: string): boolean {
+  return (
+    PLANS.find((p) => p.id === planId)?.features.includes(feature) ?? false
+  );
 }
 
 /** Total bill amount for a plan and cycle, MYR sen. */

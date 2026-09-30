@@ -92,6 +92,12 @@ export default function AccountPage() {
   const [backupPasswordOpen, setBackupPasswordOpen] = useState(false);
   const [backupPassword, setBackupPassword] = useState("");
 
+  // delete account
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const twoFactorEnabled = !!(
     user as { twoFactorEnabled?: boolean } | undefined
   )?.twoFactorEnabled;
@@ -320,6 +326,31 @@ export default function AccountPage() {
     setDisableOpen(false);
     setDisablePassword("");
     setTwoFactorMsg("Two-factor disabled.");
+    router.refresh();
+  }
+
+  async function handleDeleteAccount() {
+    setDeleteError(null);
+    setDeletePending(true);
+    try {
+      // App API route — plain fetch (authClient.$fetch prefixes /api/auth).
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setDeleteError(body?.error ?? "Account deletion failed.");
+        setDeletePending(false);
+        return;
+      }
+    } catch {
+      setDeleteError("Account deletion failed. Check your connection.");
+      setDeletePending(false);
+      return;
+    }
+    // The session row is gone — clear the client cookie regardless.
+    await authClient.signOut().catch(() => undefined);
+    router.push("/");
     router.refresh();
   }
 
@@ -726,8 +757,73 @@ export default function AccountPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          <Card className="border-red-500/30">
+            <CardHeader>
+              <CardTitle>Danger zone</CardTitle>
+              <CardDescription>
+                Permanently delete your account. Every workspace you own —
+                including your Default Workspace — its members, teams, and
+                billing records are removed immediately. Workspaces you own
+                with other members are deleted too, so remove what you need
+                first. This cannot be undone.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteOpen(true);
+                  setDeleteConfirm("");
+                  setDeleteError(null);
+                }}
+                className="flex h-11 items-center rounded-full border border-red-500/40 px-5 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-400"
+              >
+                Delete account
+              </button>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes your profile, sessions, and every
+              workspace you own — including the Default Workspace. There is
+              no undo. Type <strong>DELETE</strong> to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <input
+            value={deleteConfirm}
+            onChange={(e) => setDeleteConfirm(e.target.value)}
+            placeholder="Type DELETE"
+            className={inputClass}
+          />
+          {deleteError ? (
+            <p className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+              {deleteError}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePending}>
+              Keep my account
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deletePending || deleteConfirm !== "DELETE"}
+              className="bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:text-white dark:hover:bg-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteAccount();
+              }}
+            >
+              {deletePending ? "Deleting…" : "Delete forever"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
         <AlertDialogContent>

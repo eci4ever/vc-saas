@@ -22,11 +22,11 @@ Clone it, brand it, charge for it.
 
 **Workspaces** — every user owns a workspace and can be a member of others. Roles: `owner` (billing, settings, member management), `admin` (management), `member`. Email invitations (direct or straight into a team), teams with rosters, workspace switcher, owner guards (no self-removal, last-owner protection, confirmation dialogs).
 
-**Billing** — plans are defined in `lib/plans.ts` (Free RM0, Starter RM29, Pro RM79; quarterly −10%, yearly −20%). Owners subscribe through Billplz FPX: bill created → payment page → verified server-side on return AND via signed webhook (idempotent — both can fire). Manual renewal: pay again to extend; expiry is derived from the period end, so a lapsed workspace is "Expired" without any cron. Platform admins can assign plans for offline payments, renew, and cancel — everything lands in the audit log. A daily Vercel Cron emails owners 7 days before expiry.
+**Billing** — plans are defined in `lib/plans.ts` (Free RM0, Starter RM29, Pro RM79; quarterly −10%, yearly −20%). Plans carry workspace limits (member seats, teams) and a `features` list that the server enforces: inviting past the plan's seats, accepting an invitation into a full workspace, and creating past the team limit all fail with an upgrade hint — no matter which client sends the request. Owners subscribe through Billplz FPX: bill created → payment page → verified server-side on return AND via signed webhook (idempotent — both can fire). Every successful payment emails the owner a receipt. Manual renewal: pay again to extend; expiry is derived from the period end, so a lapsed workspace is "Expired" without any cron. Platform admins can assign plans for offline payments, renew, and cancel — everything lands in the audit log. A daily Vercel Cron emails owners 7 days before expiry.
 
-**Admin panel** — the first account to sign up on a fresh database becomes the platform admin (role `admin`). They get Users (ban, role changes, impersonation, set password, revoke sessions, delete), Organizations (rename, delete), Plans (catalog), Subscriptions (manage), and a full Audit Log.
+**Admin panel** — the first account to sign up on a fresh database becomes the platform admin (role `admin`). They get Users (ban, role changes, impersonation, set password, revoke sessions, delete), Organizations (rename, delete, search by owner email), Subscriptions (plan filter, manage), and a full Audit Log.
 
-**UI** — monochrome design system, sidebar with role-tiered navigation, single-word page headers, toasts for feedback, confirmation dialogs for destructive actions, mobile-responsive (sidebar collapses to a sheet).
+**UI** — monochrome design system, sidebar with role-tiered navigation, single-word page headers, toasts for feedback, confirmation dialogs for destructive actions, mobile-responsive (sidebar collapses to a sheet), and a light/dark/system theme switch (user menu on desktop, landing header). Legal pages (Terms, Privacy, Refunds) ship as template copy under `/terms`, `/privacy`, `/refund`.
 
 ## Quick start
 
@@ -50,13 +50,21 @@ Clone it, brand it, charge for it.
 
    (Loads `.env.local` and syncs every Drizzle schema to the database.)
 
-3. **Run**
+3. **Optional: seed demo data**
+
+   ```bash
+   npm run db:seed
+   ```
+
+   Creates a platform admin, a workspace owner + member, and an active Starter subscription so every page has something to show. Idempotent; credentials print to the console (override with `SEED_PASSWORD`, `SEED_ADMIN_EMAIL`, …).
+
+4. **Run**
 
    ```bash
    npm run dev
    ```
 
-4. Open http://localhost:3000 and sign up — **the first signup becomes the platform admin**. Subsequent signups are normal users; promote them from the admin Users page if needed.
+5. Open http://localhost:3000 and sign up — **the first signup becomes the platform admin** (skip this step if you seeded; the seed already created one). Subsequent signups are normal users; promote them from the admin Users page if needed.
 
 ## External service setup
 
@@ -99,28 +107,32 @@ vercel --prod --yes
 
 ## Branding it
 
-Everything user-facing hangs off `lib/brand.ts` (`BRAND_NAME`, `BRAND_INITIAL`) and `components/brand-mark.tsx`. Plans and prices live in `lib/plans.ts`. Email templates are in `lib/email.ts`. Page titles are single words rendered by `components/page-header.tsx`.
+Everything user-facing hangs off `lib/brand.ts` (`BRAND_NAME`, `BRAND_INITIAL`) and `components/brand-mark.tsx`. Plans, prices, and workspace limits live in `lib/plans.ts` — add your own capability flags there and gate on them with `hasFeature(planId, feature)`. Email templates share one branded layout in `lib/email.ts`. Page titles are single words rendered by `components/page-header.tsx`. Legal pages (`app/terms`, `app/privacy`, `app/refund`) are template copy — replace the placeholder company details before going live. Required env vars are validated at boot (`lib/env.ts`) with per-feature warnings for the optional ones.
 
 ## Project structure
 
 ```
 app/
-  page.tsx              Landing page (hero, pricing, status indicators)
+  page.tsx              Landing page (hero, pricing, status indicators, legal footer)
+  terms/ privacy/ refund/   Legal pages (template copy)
+  error.tsx, not-found.tsx, global-error.tsx   Branded error states
   login/ signup/        Auth pages (+ forgot-password, reset-password)
   app/                  The signed-in application — all routes /app/*
     page.tsx            Dashboard (home)
     manage/             Workspace management: Overview, Members, Invitations, Teams
     billing/            Plans, subscribe/cancel, invoices (owner actions)
     settings/           Workspace settings (manager-only)
-    account/            Personal account: profile, email, password, sessions, 2FA
-    admin/              Platform admin: Users, Organizations, Plans, Subscriptions, Audit
+    account/            Personal account: profile, email, password, sessions, 2FA, delete account
+    admin/              Platform admin: Users, Organizations, Subscriptions, Audit
   api/
     billing/            subscribe / verify / cancel / webhook (Billplz)
     cron/               billing-reminders (Vercel Cron, CRON_SECRET-guarded)
     admin/              admin user/organization/billing actions (audit-logged)
-db/                     Drizzle schemas (auth, admin audit, billing)
-drizzle/                SQL migrations, in order (0000–0005)
-lib/                    auth, plans, billplz client, guards, access matrix, email
+    manage/             org-scoped reads for the management pages (teams, limits)
+    account/            self-service account deletion
+db/                     Drizzle schemas (auth, admin audit, billing) + seed script
+drizzle/                SQL migrations, in order
+lib/                    auth, plans, billplz client, guards, access matrix, email, env
 ```
 
 Navigation and guards share one source of truth: `lib/access.ts` defines who sees each sidebar entry, and the route layouts enforce the same predicates server-side.
@@ -133,3 +145,4 @@ Navigation and guards share one source of truth: `lib/access.ts` defines who see
 | `npm run build` | Production build (also type-checks) |
 | `npm run lint` | ESLint |
 | `npm run db:push` | Sync all Drizzle schemas to the database (`.env.local`) |
+| `npm run db:seed` | Insert demo users, workspace, team, and subscription (idempotent) |

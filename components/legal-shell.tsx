@@ -20,9 +20,9 @@ export function LegalShell({
     <div className="min-h-svh bg-background font-sans text-foreground">
       <header className="border-b border-border/60">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-4">
-          <Link href="/" className="transition-opacity hover:opacity-70">
-            <BrandMark />
-          </Link>
+          {/* BrandMark is already a Link home — never wrap it in another Link
+              (nested <a> breaks hydration). */}
+          <BrandMark />
           <Link
             href="/login"
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"

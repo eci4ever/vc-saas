@@ -6,9 +6,9 @@ export default function NotFound() {
   return (
     <div className="flex min-h-svh flex-col bg-background font-sans text-foreground">
       <header className="flex items-center px-6 py-5">
-        <Link href="/" className="transition-opacity hover:opacity-70">
-          <BrandMark />
-        </Link>
+        {/* BrandMark is already a Link home — never wrap it in another Link
+            (nested <a> breaks hydration). */}
+        <BrandMark />
       </header>
       <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 pb-24 text-center">
         <span className="rounded-full border border-border bg-muted/60 px-3 py-1 text-xs font-medium text-muted-foreground">
